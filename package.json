@@ -1,0 +1,8 @@
+{
+  "name": "edtech-platform",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ]
+}

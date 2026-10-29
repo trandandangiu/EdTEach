@@ -1,0 +1,6 @@
+{
+  "name": "VietTutor EdTech Platform",
+  "description": "Nền tảng kết nối gia sư chất lượng cao & quản lý học tập toàn diện cho phụ huynh, gia sư, học sinh và đội ngũ vận hành",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
