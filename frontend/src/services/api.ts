@@ -2,7 +2,7 @@
 // Client API tập trung kết nối Frontend với Backend EdTech
 
 const getHeaders = (isMultipart = false) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('viettutor_token');
+  const token = localStorage.getItem('token') || localStorage.getItem('viettutor_token') || localStorage.getItem('auth_token');
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (!isMultipart) headers['Content-Type'] = 'application/json';
@@ -37,6 +37,7 @@ export const api = {
       if (data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('viettutor_token', data.token);
+        localStorage.setItem('auth_token', data.token);
       }
       return data;
     },
@@ -58,6 +59,7 @@ export const api = {
     async logout() {
       localStorage.removeItem('token');
       localStorage.removeItem('viettutor_token');
+      localStorage.removeItem('auth_token');
       localStorage.removeItem('viettutor_current_user');
       try {
         await fetch('/api/auth/logout', { method: 'POST', headers: getHeaders() });
@@ -130,6 +132,15 @@ export const api = {
       return handleResponse(res);
     },
 
+    async uploadApplicationAttachment(id: string, formData: FormData) {
+      const res = await fetch(`/api/tutors/applications/${id}/attachments`, {
+        method: 'POST',
+        headers: getHeaders(true),
+        body: formData,
+      });
+      return handleResponse(res);
+    },
+
     async getAllTutors(params?: { status?: string; search?: string }) {
       const query = new URLSearchParams(params as any).toString();
       const res = await fetch(`/api/tutors?${query}`, { headers: getHeaders() });
@@ -141,6 +152,20 @@ export const api = {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify({ status }),
+      });
+      return handleResponse(res);
+    },
+
+    async getPerformance(id: string) {
+      const res = await fetch(`/api/tutors/${id}/performance`, { headers: getHeaders() });
+      return handleResponse(res);
+    },
+
+    async recordViolation(id: string, payload: { type: string; note?: string; severity?: number }) {
+      const res = await fetch(`/api/tutors/${id}/violations`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
       });
       return handleResponse(res);
     },
@@ -188,6 +213,61 @@ export const api = {
       const res = await fetch(`/api/forum/posts/${postId}/like`, {
         method: 'POST',
         headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async getAdminPosts(params?: { status?: string; search?: string }) {
+      const query = new URLSearchParams(params as any).toString();
+      const res = await fetch(`/api/forum/admin/posts?${query}`, { headers: getHeaders() });
+      return handleResponse(res);
+    },
+
+    async hidePost(id: string, reason?: string) {
+      const res = await fetch(`/api/forum/posts/${id}/hide`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ reason }),
+      });
+      return handleResponse(res);
+    },
+
+    async unhidePost(id: string) {
+      const res = await fetch(`/api/forum/posts/${id}/unhide`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async deletePost(id: string) {
+      const res = await fetch(`/api/forum/posts/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async flagPost(id: string, payload: { reason: string; commentId?: string }) {
+      const res = await fetch(`/api/forum/posts/${id}/flag`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async getFlags(params?: { status?: string }) {
+      const query = new URLSearchParams(params as any).toString();
+      const res = await fetch(`/api/forum/flags?${query}`, { headers: getHeaders() });
+      return handleResponse(res);
+    },
+
+    async handleFlag(id: string, payload: { status: string; action?: string }) {
+      const res = await fetch(`/api/forum/flags/${id}/handle`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
       });
       return handleResponse(res);
     },
@@ -241,6 +321,58 @@ export const api = {
         method: 'PATCH',
         headers: getHeaders(),
         body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async createTest(payload: any) {
+      const res = await fetch('/api/assessments/tests', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async updateTest(id: string, payload: any) {
+      const res = await fetch(`/api/assessments/tests/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async deleteTest(id: string) {
+      const res = await fetch(`/api/assessments/tests/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async addQuestions(testId: string, questions: any[]) {
+      const res = await fetch(`/api/assessments/tests/${testId}/questions`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ questions }),
+      });
+      return handleResponse(res);
+    },
+
+    async updateQuestion(id: string, payload: any) {
+      const res = await fetch(`/api/assessments/questions/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async deleteQuestion(id: string) {
+      const res = await fetch(`/api/assessments/questions/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
       });
       return handleResponse(res);
     },
@@ -303,6 +435,11 @@ export const api = {
       });
       return handleResponse(res);
     },
+
+    async getSuggestions(requestId: string) {
+      const res = await fetch(`/api/class-requests/${requestId}/suggestions`, { headers: getHeaders() });
+      return handleResponse(res);
+    },
   },
 
   // ============================================
@@ -334,6 +471,23 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async approveClass(classId: string) {
+      const res = await fetch(`/api/classes/${classId}/approve`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async rejectClass(classId: string, rejectReason?: string) {
+      const res = await fetch(`/api/classes/${classId}/reject`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ rejectReason }),
       });
       return handleResponse(res);
     },
@@ -451,6 +605,12 @@ export const api = {
       });
       return handleResponse(res);
     },
+
+    async getStats(params?: { team?: string }) {
+      const query = new URLSearchParams(params as any).toString();
+      const res = await fetch(`/api/care-cases/stats?${query}`, { headers: getHeaders() });
+      return handleResponse(res);
+    },
   },
 
   // ============================================
@@ -488,6 +648,68 @@ export const api = {
     async getRewards(studentId?: string) {
       const endpoint = studentId ? `/api/kids/students/${studentId}/rewards` : '/api/kids/rewards';
       const res = await fetch(endpoint, { headers: getHeaders() });
+      return handleResponse(res);
+    },
+  },
+
+  // ============================================
+  // BAN HỌC THUẬT: MINI-GAMES & CONTENT SETS
+  // ============================================
+  learning: {
+    async getGames() {
+      const res = await fetch('/api/learning/games', { headers: getHeaders() });
+      return handleResponse(res);
+    },
+
+    async createGame(payload: { code: string; title: string; description?: string; gameType: string; ruleConfig?: any }) {
+      const res = await fetch('/api/learning/games', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async updateGame(id: string, payload: any) {
+      const res = await fetch(`/api/learning/games/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async deleteGame(id: string) {
+      const res = await fetch(`/api/learning/games/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      return handleResponse(res);
+    },
+
+    async createContentSet(payload: { gameId: string; subjectLevelId: number; title: string; data: any }) {
+      const res = await fetch('/api/learning/game-content-sets', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async updateContentSet(id: string, payload: any) {
+      const res = await fetch(`/api/learning/game-content-sets/${id}`, {
+        method: 'PUT',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(res);
+    },
+
+    async deleteContentSet(id: string) {
+      const res = await fetch(`/api/learning/game-content-sets/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
       return handleResponse(res);
     },
   },
@@ -575,8 +797,9 @@ export const api = {
       };
     },
 
-    async getUsers() {
-      const res = await fetch('/api/users', { headers: getHeaders() });
+    async getUsers(params?: { departmentId?: string; role?: string; search?: string; page?: number; limit?: number }) {
+      const query = params ? `?${new URLSearchParams(params as any).toString()}` : '';
+      const res = await fetch(`/api/users${query}`, { headers: getHeaders() });
       return handleResponse(res);
     },
 
@@ -619,6 +842,15 @@ export const api = {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ newPassword }),
+      });
+      return handleResponse(res);
+    },
+
+    async banUser(id: string, payload: { durationHours: number; banReason?: string }) {
+      const res = await fetch(`/api/users/${id}/ban`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(payload),
       });
       return handleResponse(res);
     },

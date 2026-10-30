@@ -23,6 +23,8 @@ const PublicTutorDetailPage = lazy(() => import('../features/public/PublicTutorD
 const ForumPage = lazy(() => import('../features/forum/ForumPage'));
 const ForumDetailPage = lazy(() => import('../features/forum/ForumDetailPage'));
 const LoginPage = lazy(() => import('../pages/Login'));
+const StaffLogin = lazy(() => import('../pages/StaffLogin'));
+const StaffLayout = lazy(() => import('../pages/StaffLayout'));
 const ParentRegisterPage = lazy(() => import('../features/public/ParentRegisterPage'));
 
 // 2. Tuyển dụng & Gia sư (Tutor Portal)
@@ -173,7 +175,7 @@ export const AppRoutes: React.FC = () => {
         =================================================================== */}
         <Route path="/" element={<PublicHomePage />} />
         <Route path="/home" element={<Navigate to="/" replace />} />
-        
+
         {/* Tìm kiếm & Hồ sơ gia sư kiểu Superprof */}
         <Route path="/tutors" element={<PublicTutorSearchPage />} />
         <Route path="/tutors/:id" element={<PublicTutorDetailPage />} />
@@ -184,6 +186,7 @@ export const AppRoutes: React.FC = () => {
 
         {/* Đăng ký & Đăng nhập */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/staff/login" element={<StaffLogin />} />
         <Route path="/register/parent" element={<ParentRegisterPage />} />
 
         {/* ===================================================================
@@ -260,7 +263,7 @@ export const AppRoutes: React.FC = () => {
         >
           <Route path="/admin" element={<AdminDashboard />}>
             <Route index element={<AdminDashboardHome />} />
-            
+
             {/* Phân hệ Tuyển dụng & Thẩm định */}
             <Route path="recruit" element={<AdminRecruitKanban />} />
             <Route path="recruit/grade/:attemptId" element={<AdminGradeAttemptPage />} />
@@ -286,6 +289,73 @@ export const AppRoutes: React.FC = () => {
               <Route path="audit-logs" element={<AdminAuditLogs />} />
               <Route path="sessions" element={<AdminSessions />} />
             </Route>
+          </Route>
+        </Route>
+
+        {/* ===================================================================
+            7. CÁC PHÂN HỆ CHUYÊN TRÁCH 6 BỘ PHẬN NHÂN SỰ (STAFF PORTALS)
+        =================================================================== */}
+        {/* Điều hướng chung /staff */}
+        <Route path="/staff" element={<Navigate to="/staff/recruit" replace />} />
+
+        {/* 7.1. Tuyển dụng & Thẩm định */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_RECRUIT']} />}>
+          <Route path="/staff/recruit" element={<StaffLayout />}>
+            <Route index element={<AdminRecruitKanban />} />
+            <Route path="grade/:attemptId" element={<AdminGradeAttemptPage />} />
+            <Route path="grades" element={<AdminGradeAttemptPage />} />
+            <Route path="candidates" element={<AdminRecruitKanban />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Route>
+
+        {/* 7.2. Điều phối & Ghép lớp */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_MATCHING']} />}>
+          <Route path="/staff/matching" element={<StaffLayout />}>
+            <Route index element={<AdminMatchingQueue />} />
+            <Route path="classes" element={<AdminClassesManager />} />
+            <Route path="pending-classes" element={<AdminClassesManager />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Route>
+
+        {/* 7.3. CSKH (Phụ huynh) */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_CS']} />}>
+          <Route path="/staff/care" element={<StaffLayout />}>
+            <Route index element={<AdminCareCases />} />
+            <Route path="unconfirmed" element={<AdminCareCases />} />
+            <Route path="contacts" element={<AdminCareCases />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Route>
+
+        {/* 7.4. Chăm sóc Gia sư */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_TUTOR_CARE']} />}>
+          <Route path="/staff/tutor-care" element={<StaffLayout />}>
+            <Route index element={<AdminCareCases />} />
+            <Route path="overdue" element={<AdminCareCases />} />
+            <Route path="violations" element={<AdminCareCases />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Route>
+
+        {/* 7.5. Giám sát Học thuật */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_ACADEMIC']} />}>
+          <Route path="/staff/academic" element={<StaffLayout />}>
+            <Route index element={<AdminAcademicManager />} />
+            <Route path="games" element={<AdminAcademicManager />} />
+            <Route path="cases" element={<AdminCareCases />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
+        </Route>
+
+        {/* 7.6. Ban Kiểm duyệt Diễn đàn */}
+        <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_FORUM']} />}>
+          <Route path="/staff/forum" element={<StaffLayout />}>
+            <Route index element={<AdminForumMod />} />
+            <Route path="flags" element={<AdminForumMod />} />
+            <Route path="banned" element={<AdminUsers />} />
+            <Route path="users" element={<AdminUsers />} />
           </Route>
         </Route>
 

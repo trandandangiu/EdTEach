@@ -1,0 +1,42 @@
+﻿services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: edteach_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: edteach_db
+      POSTGRES_USER: edteach_app
+      POSTGRES_PASSWORD: EdTeach@2026Strong!
+      TZ: Asia/Ho_Chi_Minh
+    ports:
+      - "5436:5432"  # Đổi sang 5436 để không trùng
+    volumes:
+      - edteach_postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edteach_app -d edteach_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: edteach_redis
+    restart: always
+    ports:
+      - "6381:6379"  # Đổi sang 6381
+    volumes:
+      - edteach_redis_data:/data
+
+  adminer:
+    image: adminer:latest
+    container_name: edteach_adminer
+    restart: always
+    ports:
+      - "8083:8080"  # Đổi sang 8083
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+volumes:
+  edteach_postgres_data:
+  edteach_redis_data:

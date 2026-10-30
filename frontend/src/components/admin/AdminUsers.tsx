@@ -1,9 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, Search, Plus, ShieldCheck, UserCheck, Edit3, Trash2, Key, 
-  Lock, Unlock, AlertCircle, CheckCircle2, Loader2, X, RefreshCw 
+import {
+  Users, Search, Plus, ShieldCheck, UserCheck, Edit3, Trash2, Key,
+  Lock, Unlock, AlertCircle, CheckCircle2, Loader2, X, RefreshCw, Building2
 } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+
+const DEPT_ROLE_MAP: Record<string, Array<{ code: string; name: string }>> = {
+  DEPT_RECRUIT: [{ code: 'STAFF_RECRUIT', name: 'Chuyên Viên Tuyển Dụng (STAFF_RECRUIT)' }],
+  DEPT_MATCHING: [{ code: 'STAFF_MATCHING', name: 'Chuyên Viên Ghép Lớp (STAFF_MATCHING)' }],
+  DEPT_CS: [{ code: 'STAFF_CS', name: 'Chuyên Viên CSKH Phụ Huynh (STAFF_CS)' }],
+  DEPT_TUTOR_CARE: [{ code: 'STAFF_TUTOR_CARE', name: 'Chuyên Viên CSKH Gia Sư (STAFF_TUTOR_CARE)' }],
+  DEPT_ACADEMIC: [{ code: 'STAFF_ACADEMIC', name: 'Chuyên Viên Học Thuật (STAFF_ACADEMIC)' }],
+  DEPT_FORUM: [{ code: 'STAFF_FORUM', name: 'Kiểm Duyệt Diễn Đàn (STAFF_FORUM)' }],
+};
+
+const ALL_ROLES = [
+  { code: 'PARENT', name: 'Phụ Huynh (PARENT)' },
+  { code: 'TUTOR', name: 'Gia Sư Chính Thức (TUTOR)' },
+  { code: 'APPLICANT', name: 'Ứng Viên Gia Sư (APPLICANT)' },
+  { code: 'STAFF_RECRUIT', name: 'Chuyên Viên Tuyển Dụng (STAFF_RECRUIT)' },
+  { code: 'STAFF_MATCHING', name: 'Chuyên Viên Ghép Lớp (STAFF_MATCHING)' },
+  { code: 'STAFF_CS', name: 'Chuyên Viên CSKH Phụ Huynh (STAFF_CS)' },
+  { code: 'STAFF_TUTOR_CARE', name: 'Chuyên Viên CSKH Gia Sư (STAFF_TUTOR_CARE)' },
+  { code: 'STAFF_ACADEMIC', name: 'Chuyên Viên Học Thuật (STAFF_ACADEMIC)' },
+  { code: 'STAFF_FORUM', name: 'Kiểm Duyệt Diễn Đàn (STAFF_FORUM)' },
+  { code: 'ADMIN', name: 'Quản Trị Viên Toàn Quyền (ADMIN)' },
+];
 
 interface UserRecord {
   id: string;
@@ -12,6 +35,8 @@ interface UserRecord {
   email?: string;
   phone?: string;
   active: boolean;
+  departmentId?: number | null;
+  department?: { id: number; code: string; name: string } | null;
   createdAt?: string;
   userRoles?: Array<{ role: { code: string; name: string } }>;
   roles?: string[];
@@ -19,6 +44,13 @@ interface UserRecord {
 }
 
 export default function AdminUsers() {
+  const { user: currentUser } = useAuth();
+  const isAdmin = currentUser?.actorType === 'ADMIN' || (currentUser?.roles && currentUser.roles.includes('ADMIN'));
+  const staffDeptCode = currentUser?.departmentCode || '';
+  const availableRoles = (!isAdmin && staffDeptCode && DEPT_ROLE_MAP[staffDeptCode])
+    ? DEPT_ROLE_MAP[staffDeptCode]
+    : ALL_ROLES;
+
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -38,13 +70,17 @@ export default function AdminUsers() {
     email: '',
     phone: '',
     password: 'password123',
-    roleCode: 'PARENT',
+    roleCode: availableRoles[0]?.code || 'PARENT',
   });
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res: any = await api.admin.getUsers();
+      const params: any = {};
+      if (!isAdmin && currentUser?.departmentId) {
+        params.departmentId = currentUser.departmentId;
+      }
+      const res: any = await api.admin.getUsers(params);
       const list = Array.isArray(res) ? res : (res.data || res.users || []);
       setUsers(list);
     } catch (err: any) {
@@ -56,7 +92,7 @@ export default function AdminUsers() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [currentUser]);
 
   const showNotification = (type: 'success' | 'error', text: string) => {
     setMessage({ type, text });
@@ -149,22 +185,38 @@ export default function AdminUsers() {
   };
 
   const getUserRoleCodes = (u: UserRecord): string[] => {
+    const extractCode = (r: any): string => {
+      if (!r) return '';
+      if (typeof r === 'string') return r;
+      return r.code || r.name || ''; // Nếu là object, lấy code
+    };
+
+    // 1. Kiểm tra quan hệ lồng nhau (userRoles)
     if (u.userRoles && u.userRoles.length > 0) {
-      return u.userRoles.map(ur => ur.role.code);
+      return u.userRoles.map(ur => extractCode(ur.role)).filter(Boolean);
     }
-    if (u.roles && u.roles.length > 0) return u.roles;
-    if (u.role) return [u.role];
+
+    // 2. Kiểm tra mảng roles
+    if (u.roles && u.roles.length > 0) {
+      return u.roles.map(extractCode).filter(Boolean);
+    }
+
+    // 3. Kiểm tra role đơn lẻ
+    if (u.role) {
+      return [extractCode(u.role)].filter(Boolean);
+    }
+
     return ['USER'];
   };
 
   const filtered = users.filter((u) => {
     const roleCodes = getUserRoleCodes(u);
-    const matchRole = 
+    const matchRole =
       roleFilter === 'ALL' ? true :
-      roleFilter === 'PARENT' ? roleCodes.includes('PARENT') :
-      roleFilter === 'TUTOR' ? (roleCodes.includes('TUTOR') || roleCodes.includes('APPLICANT')) :
-      roleFilter === 'STAFF' ? roleCodes.some(r => r.startsWith('STAFF_')) :
-      roleFilter === 'ADMIN' ? roleCodes.includes('ADMIN') : true;
+        roleFilter === 'PARENT' ? roleCodes.includes('PARENT') :
+          roleFilter === 'TUTOR' ? (roleCodes.includes('TUTOR') || roleCodes.includes('APPLICANT')) :
+            roleFilter === 'STAFF' ? roleCodes.some(r => r.startsWith('STAFF_')) :
+              roleFilter === 'ADMIN' ? roleCodes.includes('ADMIN') : true;
 
     const term = search.toLowerCase();
     const matchSearch =
@@ -189,6 +241,12 @@ export default function AdminUsers() {
           <p className="text-xs text-slate-500 mt-0.5">
             Tạo tài khoản mới, phân quyền, khóa và đặt lại mật khẩu cho Phụ huynh, Gia sư và Nhân viên.
           </p>
+          {!isAdmin && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold mt-2">
+              <Building2 size={13} />
+              <span>Chế độ quản lý nội bộ: Bộ phận {staffDeptCode || 'Chuyên trách'}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -201,7 +259,7 @@ export default function AdminUsers() {
           </button>
           <button
             onClick={() => {
-              setFormData({ username: '', fullName: '', email: '', phone: '', password: 'password123', roleCode: 'PARENT' });
+              setFormData({ username: '', fullName: '', email: '', phone: '', password: 'password123', roleCode: availableRoles[0]?.code || 'PARENT' });
               setIsCreateOpen(true);
             }}
             className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5"
@@ -214,9 +272,8 @@ export default function AdminUsers() {
 
       {/* Notifications */}
       {message && (
-        <div className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border ${
-          message.type === 'success' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200'
-        }`}>
+        <div className={`p-4 rounded-2xl text-xs font-bold flex items-center justify-between border ${message.type === 'success' ? 'bg-emerald-50 text-emerald-900 border-emerald-200' : 'bg-rose-50 text-rose-900 border-rose-200'
+          }`}>
           <span>{message.text}</span>
           <button onClick={() => setMessage(null)} className="text-slate-400 hover:text-slate-600">✕</button>
         </div>
@@ -230,14 +287,13 @@ export default function AdminUsers() {
             <button
               key={r}
               onClick={() => setRoleFilter(r)}
-              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${
-                roleFilter === r ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+              className={`px-3 py-1.5 rounded-xl font-bold whitespace-nowrap transition ${roleFilter === r ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+                }`}
             >
               {r === 'ALL' ? 'Tất cả' :
-               r === 'PARENT' ? 'Phụ huynh' :
-               r === 'TUTOR' ? 'Gia sư' :
-               r === 'STAFF' ? 'Điều phối & CSKH' : 'Quản trị viên'}
+                r === 'PARENT' ? 'Phụ huynh' :
+                  r === 'TUTOR' ? 'Gia sư' :
+                    r === 'STAFF' ? 'Điều phối & CSKH' : 'Quản trị viên'}
             </button>
           ))}
         </div>
@@ -282,6 +338,8 @@ export default function AdminUsers() {
               <tbody className="divide-y divide-slate-100 font-sans">
                 {filtered.map((u) => {
                   const roleCodes = getUserRoleCodes(u);
+                  const isTargetAdmin = roleCodes.includes('ADMIN');
+                  const canManage = isAdmin || !isTargetAdmin;
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/70 transition">
                       <td className="p-4">
@@ -298,15 +356,14 @@ export default function AdminUsers() {
                       <td className="p-4">
                         <div className="flex flex-wrap gap-1">
                           {roleCodes.map((rc) => (
-                            <span 
+                            <span
                               key={rc}
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${
-                                rc === 'ADMIN' ? 'bg-purple-50 text-purple-800 border-purple-200' :
-                                rc === 'PARENT' ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                                rc === 'TUTOR' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                                rc === 'APPLICANT' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                                'bg-slate-100 text-slate-700 border-slate-200'
-                              }`}
+                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded border ${rc === 'ADMIN' ? 'bg-purple-50 text-purple-800 border-purple-200' :
+                                  rc === 'PARENT' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                                    rc === 'TUTOR' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                      rc === 'APPLICANT' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                        'bg-slate-100 text-slate-700 border-slate-200'
+                                }`}
                             >
                               {rc}
                             </span>
@@ -315,13 +372,15 @@ export default function AdminUsers() {
                       </td>
                       <td className="p-4">
                         <button
+                          disabled={!canManage}
                           onClick={() => handleToggleActive(u)}
-                          title="Bấm để bật/tắt kích hoạt"
+                          title={!canManage ? "Không có quyền sửa quản trị viên" : "Bấm để bật/tắt kích hoạt"}
                           className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 transition ${
-                            u.active !== false 
-                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
+                            !canManage ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-500' :
+                            u.active !== false
+                              ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
                               : 'bg-rose-100 text-rose-800 hover:bg-rose-200'
-                          }`}
+                            }`}
                         >
                           {u.active !== false ? (
                             <>
@@ -337,32 +396,36 @@ export default function AdminUsers() {
                         </button>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => openEditModal(u)}
-                            title="Sửa thông tin"
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-emerald-800 transition"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setResetPwdUser(u);
-                              setNewPasswordValue('password123');
-                            }}
-                            title="Đặt lại mật khẩu"
-                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-amber-700 transition"
-                          >
-                            <Key size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(u)}
-                            title="Xóa tài khoản"
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-700 transition"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                        {canManage ? (
+                          <div className="inline-flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEditModal(u)}
+                              title="Sửa thông tin"
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-emerald-800 transition"
+                            >
+                              <Edit3 size={15} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setResetPwdUser(u);
+                                setNewPasswordValue('password123');
+                              }}
+                              title="Đặt lại mật khẩu"
+                              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-amber-700 transition"
+                            >
+                              <Key size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u)}
+                              title="Xóa tài khoản"
+                              className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-700 transition"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] font-bold text-slate-400 italic">Quản trị viên</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -457,13 +520,11 @@ export default function AdminUsers() {
                     onChange={(e) => setFormData({ ...formData, roleCode: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden font-bold text-slate-800"
                   >
-                    <option value="PARENT">Phụ Huynh (PARENT)</option>
-                    <option value="TUTOR">Gia Sư Chính Thức (TUTOR)</option>
-                    <option value="APPLICANT">Ứng Viên Gia Sư (APPLICANT)</option>
-                    <option value="STAFF_MATCHING">Chuyên Viên Ghép Lớp (STAFF_MATCHING)</option>
-                    <option value="STAFF_CARE">Chuyên Viên CSKH (STAFF_CARE)</option>
-                    <option value="STAFF_ACADEMIC">Chuyên Viên Học Thuật (STAFF_ACADEMIC)</option>
-                    <option value="ADMIN">Quản Trị Viên Toàn Quyền (ADMIN)</option>
+                    {availableRoles.map((r) => (
+                      <option key={r.code} value={r.code}>
+                        {r.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -545,13 +606,11 @@ export default function AdminUsers() {
                   onChange={(e) => setFormData({ ...formData, roleCode: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden font-bold text-slate-800"
                 >
-                  <option value="PARENT">Phụ Huynh (PARENT)</option>
-                  <option value="TUTOR">Gia Sư Chính Thức (TUTOR)</option>
-                  <option value="APPLICANT">Ứng Viên Gia Sư (APPLICANT)</option>
-                  <option value="STAFF_MATCHING">Chuyên Viên Ghép Lớp (STAFF_MATCHING)</option>
-                  <option value="STAFF_CARE">Chuyên Viên CSKH (STAFF_CARE)</option>
-                  <option value="STAFF_ACADEMIC">Chuyên Viên Học Thuật (STAFF_ACADEMIC)</option>
-                  <option value="ADMIN">Quản Trị Viên Toàn Quyền (ADMIN)</option>
+                  {availableRoles.map((r) => (
+                    <option key={r.code} value={r.code}>
+                      {r.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

@@ -25,7 +25,9 @@ export interface AuthUser {
   avatar: string;
   roles: string[];
   permissions: string[];
-  actorType: 'USER' | 'STUDENT' | 'PARENT' | 'TUTOR' | 'ADMIN';
+  actorType: 'USER' | 'STUDENT' | 'PARENT' | 'TUTOR' | 'ADMIN' | 'STAFF';
+  departmentId?: string;
+  departmentCode?: string;
   kidProfile?: KidProfile;
 }
 
@@ -134,14 +136,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [isLoading, setIsLoading] = useState(false);
 
-  // Restore session from API if auth_token exists
+  // Restore session from API if token exists or auto-login default demo user
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('token') || localStorage.getItem('viettutor_token') || localStorage.getItem('auth_token');
     if (token) {
       api.auth.getMe().then((res: any) => {
         if (res?.user) {
           const u = res.user;
           const mappedRole = u.roles?.[0] || 'PARENT';
+          const deptCode = u.department?.code || (u.roles?.includes('ADMIN') ? 'ALL' : '');
+          if (deptCode) {
+            localStorage.setItem('viettutor_staff_dept', deptCode);
+          }
+
           const authUser: AuthUser = {
             id: u.id,
             name: u.fullName || u.username || 'Người dùng',
@@ -150,7 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             avatar: u.avatar || PRESET_USERS[mappedRole]?.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=150&q=80',
             roles: u.roles || [mappedRole],
             permissions: u.permissions || [],
-            actorType: u.roles?.includes('ADMIN') ? 'ADMIN' : u.roles?.includes('TUTOR') ? 'TUTOR' : u.roles?.includes('STUDENT') ? 'STUDENT' : 'PARENT',
+            actorType: u.roles?.includes('ADMIN') ? 'ADMIN' : (u.roles?.some((r: string) => r.startsWith('STAFF_')) ? 'STAFF' : (u.roles?.includes('TUTOR') ? 'TUTOR' : u.roles?.includes('STUDENT') ? 'STUDENT' : 'PARENT')),
+            departmentId: u.departmentId,
+            departmentCode: u.department?.code,
             kidProfile: u.studentProfile || (mappedRole === 'STUDENT' ? PRESET_USERS.STUDENT.kidProfile : undefined),
           };
           setCurrentUser(authUser);
@@ -158,6 +167,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }).catch(() => {
         // Token invalid or offline, keep current state
       });
+    } else {
+      // Auto-login default parent account in the background for live API demo
+      api.auth.login('parent_maianh', 'password123').catch(() => {});
     }
   }, []);
 
@@ -181,6 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (res?.user && res?.token) {
         const u = res.user;
         const mappedRole = u.roles?.[0] || targetKey;
+        const deptCode = u.department?.code || (u.roles?.includes('ADMIN') ? 'ALL' : '');
+        if (deptCode) {
+          localStorage.setItem('viettutor_staff_dept', deptCode);
+        } else {
+          localStorage.removeItem('viettutor_staff_dept');
+        }
+
         const authUser: AuthUser = {
           id: u.id,
           name: u.fullName || u.username || email,
@@ -189,7 +208,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           avatar: u.avatar || PRESET_USERS[mappedRole]?.avatar || '',
           roles: u.roles || [mappedRole],
           permissions: u.permissions || [],
-          actorType: u.roles?.includes('ADMIN') ? 'ADMIN' : u.roles?.includes('TUTOR') ? 'TUTOR' : u.roles?.includes('STUDENT') ? 'STUDENT' : 'PARENT',
+          actorType: u.roles?.includes('ADMIN') ? 'ADMIN' : (u.roles?.some((r: string) => r.startsWith('STAFF_')) ? 'STAFF' : (u.roles?.includes('TUTOR') ? 'TUTOR' : u.roles?.includes('STUDENT') ? 'STUDENT' : 'PARENT')),
+          departmentId: u.departmentId,
+          departmentCode: u.department?.code,
           kidProfile: u.studentProfile || (mappedRole === 'STUDENT' ? PRESET_USERS.STUDENT.kidProfile : undefined),
         };
         setCurrentUser(authUser);
@@ -208,16 +229,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    localStorage.removeItem('viettutor_staff_dept');
     api.auth.logout();
     setCurrentUser(null);
   };
 
-  const switchUserRole = (roleKey: 'PUBLIC' | 'PARENT' | 'TUTOR' | 'STUDENT' | 'ADMIN' | 'APPLICANT' | 'STAFF') => {
+  const switchUserRole = async (roleKey: 'PUBLIC' | 'PARENT' | 'TUTOR' | 'STUDENT' | 'ADMIN' | 'APPLICANT' | 'STAFF') => {
     if (roleKey === 'PUBLIC') {
       api.auth.logout();
       setCurrentUser(null);
-    } else {
-      setCurrentUser(PRESET_USERS[roleKey] || PRESET_USERS.PARENT);
+      return;
+    }
+
+    // Cập nhật UI ngay lập tức
+    setCurrentUser(PRESET_USERS[roleKey] || PRESET_USERS.PARENT);
+
+    // Đồng bộ JWT token thật từ backend cho role tương ứng
+    const credentialsMap: Record<string, { u: string; p: string }> = {
+      PARENT: { u: 'parent_maianh', p: 'password123' },
+      TUTOR: { u: 'tutor_hoangnam', p: 'password123' },
+      ADMIN: { u: 'admin', p: 'password123' },
+      STAFF: { u: 'admin', p: 'password123' },
+      STUDENT: { u: 'student_baonam', p: 'password123' },
+    };
+
+    const cred = credentialsMap[roleKey];
+    if (cred) {
+      try {
+        await api.auth.login(cred.u, cred.p);
+      } catch {
+        // Dự phòng mật khẩu thứ 2
+        try {
+          await api.auth.login(cred.u, 'password123');
+        } catch {
+          // ignore
+        }
+      }
     }
   };
 

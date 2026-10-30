@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { ExamAttempt } from '../../../types/edtech';
-import { ArrowLeft, CheckCircle2, ShieldCheck, Award, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShieldCheck, Award, AlertCircle, Upload, FileText, Eye, X } from 'lucide-react';
 
 export default function AdminGradeAttemptPage() {
   const { attemptId } = useParams<{ attemptId: string }>();
@@ -14,6 +14,12 @@ export default function AdminGradeAttemptPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Attachments state
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewTitle, setPreviewTitle] = useState<string>('');
+
   useEffect(() => {
     async function loadAttempt() {
       if (!attemptId) return;
@@ -23,6 +29,9 @@ export default function AdminGradeAttemptPage() {
         if (res.data) {
           setAttempt(res.data);
           setAnswers(res.data.answers || []);
+          if (res.data.applicationId) {
+            fetchApplicationAttachments(res.data.applicationId);
+          }
         }
       } catch (err) {
         console.error('Lỗi tải bài thi:', err);
@@ -32,6 +41,37 @@ export default function AdminGradeAttemptPage() {
     }
     loadAttempt();
   }, [attemptId]);
+
+  const fetchApplicationAttachments = async (appId: string) => {
+    try {
+      const appRes = await api.tutors.getApplicationDetail(appId);
+      if (appRes.data?.attachments) {
+        setAttachments(appRes.data.attachments);
+      }
+    } catch (e) {
+      console.warn('Không tải được danh sách hồ sơ đính kèm:', e);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !attempt?.applicationId) return;
+
+    try {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('category', 'DEGREE_CERTIFICATE');
+
+      await api.tutors.uploadApplicationAttachment(attempt.applicationId, formData);
+      await fetchApplicationAttachments(attempt.applicationId);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi tải lên file');
+    } finally {
+      setIsUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const handlePointChange = (qId: number | string, points: number) => {
     setAnswers(answers.map(a => a.questionId === qId ? { ...a, pointsAwarded: points } : a));
@@ -89,6 +129,61 @@ export default function AdminGradeAttemptPage() {
             <span className="text-[10px] font-bold text-slate-400 block">TỔNG ĐIỂM DỰ KIẾN</span>
             <span className="text-2xl font-black text-emerald-800">{totalScore} / 100đ</span>
           </div>
+        </div>
+
+        {/* Hồ sơ đính kèm (CV & Bằng cấp) */}
+        <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-emerald-800" />
+                <span>Hồ sơ minh chứng & Bằng cấp (CV / Bằng ĐH / Chứng chỉ)</span>
+              </h3>
+              <p className="text-[11px] text-slate-500">Xem trước tài liệu PDF hoặc hình ảnh văn bằng do ứng viên cung cấp</p>
+            </div>
+            <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl transition ${
+              isUploading ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-emerald-800 text-white hover:bg-emerald-900 shadow-xs'
+            }`}>
+              <Upload className="w-3.5 h-3.5" />
+              <span>{isUploading ? 'Đang tải lên...' : 'Tải lên tài liệu'}</span>
+              <input
+                type="file"
+                disabled={isUploading}
+                onChange={handleFileUpload}
+                accept=".pdf,image/*,.doc,.docx"
+                className="hidden"
+              />
+            </label>
+          </div>
+
+          {attachments.length === 0 ? (
+            <div className="py-6 text-center text-slate-400 text-xs italic bg-white rounded-xl border border-dashed border-slate-200">
+              Chưa có tài liệu đính kèm nào được tải lên cho ứng viên này.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {attachments.map((att) => (
+                <div key={att.id} className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-2 text-xs hover:border-emerald-500 transition">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 truncate" title={att.fileName}>{att.fileName}</p>
+                    <span className="text-[10px] text-slate-400 block font-mono">
+                      {(att.fileSize / 1024).toFixed(1)} KB · {att.category || 'Văn bằng'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPreviewUrl(`/api/attachments/${att.id}/download?inline=1`);
+                      setPreviewTitle(att.fileName);
+                    }}
+                    title="Xem trước tài liệu"
+                    className="p-1.5 text-emerald-800 hover:bg-emerald-50 rounded-lg shrink-0 transition"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {isSaved ? (
@@ -170,6 +265,33 @@ export default function AdminGradeAttemptPage() {
           </div>
         )}
       </div>
+
+      {/* Modal Preview PDF & Ảnh Minh Chứng */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-4xl w-full h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-emerald-800" />
+                <h3 className="font-bold text-sm text-slate-900 truncate max-w-lg">{previewTitle}</h3>
+              </div>
+              <button
+                onClick={() => setPreviewUrl(null)}
+                className="p-1 rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 bg-slate-100 p-2">
+              <iframe
+                src={previewUrl}
+                title={previewTitle}
+                className="w-full h-full rounded-2xl bg-white border border-slate-200"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
