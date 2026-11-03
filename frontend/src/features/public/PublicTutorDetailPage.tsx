@@ -16,15 +16,24 @@ import {
   MessageSquare,
   GraduationCap,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Trash2,
+  ShieldAlert
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 export default function PublicTutorDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const isAdmin = currentUser?.actorType === 'ADMIN' || (currentUser?.roles && currentUser.roles.includes('ADMIN'));
 
   const [tutor, setTutor] = useState<TutorProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [adminNotice, setAdminNotice] = useState<string | null>(null);
 
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [studentGrade, setStudentGrade] = useState('Lớp 4');
@@ -32,6 +41,42 @@ export default function PublicTutorDetailPage() {
   const [parentPhone, setParentPhone] = useState('0988 123 456');
   const [parentNote, setParentNote] = useState('Bé hơi nhút nhát dạng toán giải đố, muốn thầy kèm 2 buổi/tuần.');
   const [submitted, setSubmitted] = useState(false);
+
+  const handleToggleVisibility = async () => {
+    if (!tutor?.id) return;
+    try {
+      setActionLoading(true);
+      const res: any = await api.tutors.toggleVisibility(tutor.id);
+      if (res?.data) {
+        setTutor((prev) => prev ? { ...prev, status: res.data.status } : null);
+        setAdminNotice(res.message || 'Cập nhật trạng thái hiển thị thành công!');
+        setTimeout(() => setAdminNotice(null), 4000);
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi thay đổi trạng thái gia sư');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteTutor = async () => {
+    if (!tutor?.id) return;
+    const confirmDel = window.confirm(
+      `Bạn có chắc chắn muốn xóa/thu hồi hồ sơ của gia sư "${tutor.name}" không?\n\n- Nếu gia sư đã có lớp/báo cáo: Hệ thống sẽ chuyển trạng thái đình chỉ (SUSPENDED) và ẩn hoàn toàn khỏi sàn.\n- Nếu chưa có dữ liệu lịch sử: Hồ sơ sẽ được xóa vĩnh viễn.`
+    );
+    if (!confirmDel) return;
+
+    try {
+      setActionLoading(true);
+      const res: any = await api.tutors.deleteTutor(tutor.id);
+      alert(res?.message || 'Đã xử lý hồ sơ gia sư thành công!');
+      navigate('/tutors');
+    } catch (err: any) {
+      alert(err?.message || 'Lỗi khi xóa hồ sơ gia sư');
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadTutor() {
@@ -102,6 +147,82 @@ export default function PublicTutorDetailPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
+        {/* Admin Controls Panel */}
+        {isAdmin && (
+          <div className="bg-amber-50/90 border-2 border-amber-300 rounded-3xl p-5 mb-8 shadow-xs">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-900 shrink-0">
+                  <ShieldAlert className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-md">
+                      Bảng Quản Trị Viên (Admin Moderation)
+                    </span>
+                    <span className={`text-xs font-extrabold px-2.5 py-0.5 rounded-full ${
+                      tutor.status === 'ACTIVE'
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        : tutor.status === 'PAUSED'
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : 'bg-rose-100 text-rose-800 border border-rose-300'
+                    }`}>
+                      {tutor.status === 'ACTIVE'
+                        ? '● Đang công khai trên sàn'
+                        : tutor.status === 'PAUSED'
+                          ? '● Đang tạm ẩn khỏi sàn'
+                          : '● Đã bị khóa / đình chỉ'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-900/80 mt-1">
+                    Quản trị viên có quyền ẩn gia sư khỏi sàn tìm kiếm hoặc thu hồi / xóa hồ sơ gia sư này khỏi hệ thống.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 w-full md:w-auto shrink-0">
+                <button
+                  onClick={handleToggleVisibility}
+                  disabled={actionLoading}
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs ${
+                    tutor.status === 'ACTIVE'
+                      ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                      : 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                  }`}
+                >
+                  {tutor.status === 'ACTIVE' ? (
+                    <>
+                      <EyeOff className="w-4 h-4" />
+                      <span>Tạm ẩn khỏi sàn</span>
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="w-4 h-4" />
+                      <span>Mở công khai trên sàn</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleDeleteTutor}
+                  disabled={actionLoading}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white transition cursor-pointer shadow-xs"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Xóa hồ sơ gia sư</span>
+                </button>
+              </div>
+            </div>
+
+            {adminNotice && (
+              <div className="mt-3 pt-3 border-t border-amber-200/60 text-xs font-bold text-emerald-800 flex items-center gap-1.5 animate-fadeIn">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                <span>{adminNotice}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Tutor Details */}
           <div className="lg:col-span-2 space-y-6">

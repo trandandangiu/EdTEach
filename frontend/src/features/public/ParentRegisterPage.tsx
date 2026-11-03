@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Navbar } from '../../components/layout/Navbar';
 import { Footer } from '../../components/layout/Footer';
-import { GraduationCap, ShieldCheck, CheckCircle2, User, Phone, Mail, Lock } from 'lucide-react';
-
+import { GraduationCap, ShieldCheck, CheckCircle2, User, Phone, Mail, Lock, KeyRound, Loader2, Send } from 'lucide-react';
 import { api } from '../../services/api';
 
 export default function ParentRegisterPage() {
@@ -17,13 +16,79 @@ export default function ParentRegisterPage() {
   const [password, setPassword] = useState('');
   const [childName, setChildName] = useState('');
   const [childGrade, setChildGrade] = useState('Lớp 4');
+
+  // OTP Email Verification States
+  const [otpCode, setOtpCode] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [otpMsg, setOtpMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Countdown timer for resending OTP
+  useEffect(() => {
+    let timer: any;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  const handleSendOtp = async () => {
+    if (!email || !email.includes('@')) {
+      setOtpMsg({ type: 'error', text: 'Vui lòng nhập đúng định dạng Gmail trước khi gửi mã.' });
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpMsg(null);
+
+    try {
+      const res: any = await api.auth.sendEmailOtp(email.trim(), 'PARENT_REGISTER');
+      setIsOtpSent(true);
+      setCountdown(60);
+      const extraHint = res.debugOtp ? ` (Mã kiểm thử: ${res.debugOtp})` : '';
+      setOtpMsg({ type: 'success', text: `Đã gửi mã xác nhận 6 số về Gmail "${email}". Vui lòng kiểm tra hộp thư!${extraHint}` });
+    } catch (err: any) {
+      setOtpMsg({ type: 'error', text: err?.message || 'Không thể gửi mã xác nhận. Vui lòng thử lại.' });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setOtpMsg({ type: 'error', text: 'Vui lòng nhập đầy đủ 6 chữ số mã xác nhận.' });
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpMsg(null);
+
+    try {
+      await api.auth.verifyEmailOtp(email.trim(), otpCode.trim());
+      setIsOtpVerified(true);
+      setOtpMsg({ type: 'success', text: 'Xác thực Gmail thành công! Bạn có thể hoàn tất đăng ký.' });
+    } catch (err: any) {
+      setOtpMsg({ type: 'error', text: err?.message || 'Mã xác nhận không đúng hoặc đã hết hạn.' });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (!isOtpVerified) {
+      setErrorMsg('Vui lòng gửi và xác thực mã OTP Gmail trước khi tạo tài khoản.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -33,18 +98,20 @@ export default function ParentRegisterPage() {
         password,
         fullName: fullName.trim(),
         phone: phone.trim(),
-        email: email.trim() || undefined,
+        email: email.trim(),
       });
 
       setIsSuccess(true);
       setTimeout(async () => {
-        await login(username, password);
-        switchUserRole('PARENT');
+        try {
+          await login(username, password);
+        } catch {
+          // ignore
+        }
         navigate('/parent/dashboard');
       }, 1200);
     } catch (err: any) {
       console.error('Registration failed:', err);
-      // If backend fails due to network/duplicate, fallback gracefully
       setErrorMsg(err?.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
       setLoading(false);
     }
@@ -62,7 +129,7 @@ export default function ParentRegisterPage() {
               Đăng Ký Tài Khoản Phụ Huynh
             </h1>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Tạo tài khoản để quản lý lịch học, nhận báo cáo tiến độ từng buổi và cấp tài khoản làm bài cho bé.
+              Tạo tài khoản để quản lý lịch học, nhận báo cáo tiến độ từng buổi và bảo mật bằng mã xác thực Gmail.
             </p>
           </div>
 
@@ -81,12 +148,14 @@ export default function ParentRegisterPage() {
                   {errorMsg}
                 </div>
               )}
+
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Họ và tên phụ huynh</label>
+                <label className="block text-xs font-bold text-slate-700">Họ và tên phụ huynh *</label>
                 <div className="relative">
                   <input
                     type="text"
                     required
+                    placeholder="Ví dụ: Nguyễn Thị Mai Anh"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
@@ -97,11 +166,12 @@ export default function ParentRegisterPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Số điện thoại Zalo</label>
+                  <label className="block text-xs font-bold text-slate-700">Số điện thoại liên hệ / Zalo *</label>
                   <div className="relative">
                     <input
                       type="tel"
                       required
+                      placeholder="0988 123 456"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
@@ -111,34 +181,100 @@ export default function ParentRegisterPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Email nhận báo cáo</label>
+                  <label className="block text-xs font-bold text-slate-700">Mật khẩu đăng nhập *</label>
                   <div className="relative">
                     <input
-                      type="email"
+                      type="password"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Tối thiểu 6 ký tự"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
                     />
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Mật khẩu</label>
-                <div className="relative">
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                  />
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              {/* KHỐI XÁC THỰC GMAIL BẰNG MÃ OTP */}
+              <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-extrabold text-emerald-950">
+                    Địa chỉ Gmail nhận thông báo & Mã xác nhận *
+                  </label>
+                  {isOtpVerified && (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Đã xác thực Gmail
+                    </span>
+                  )}
                 </div>
+
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="email"
+                      required
+                      disabled={isOtpVerified}
+                      placeholder="nhapemailcuaban@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white disabled:bg-slate-100"
+                    />
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={otpLoading || countdown > 0 || isOtpVerified}
+                    className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition shrink-0 flex items-center gap-1.5"
+                  >
+                    {otpLoading ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5" />
+                    )}
+                    <span>
+                      {countdown > 0 ? `Gửi lại (${countdown}s)` : isOtpSent ? 'Gửi lại mã' : 'Gửi mã xác nhận'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Nhập mã OTP khi đã gửi */}
+                {isOtpSent && !isOtpVerified && (
+                  <div className="pt-2 flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        placeholder="Nhập 6 số mã xác nhận từ Gmail..."
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        className="w-full text-xs font-mono font-bold tracking-widest text-center px-3 py-2.5 pl-9 border border-emerald-300 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
+                      />
+                      <KeyRound className="w-4 h-4 text-emerald-700 absolute left-3 top-3" />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={otpLoading || otpCode.trim().length !== 6}
+                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition shrink-0"
+                    >
+                      Xác nhận mã
+                    </button>
+                  </div>
+                )}
+
+                {otpMsg && (
+                  <p className={`text-[11px] font-medium ${otpMsg.type === 'error' ? 'text-rose-600' : 'text-emerald-800'}`}>
+                    {otpMsg.text}
+                  </p>
+                )}
               </div>
 
+              {/* Thông tin bé cần kèm */}
               <div className="pt-2 border-t border-slate-100">
                 <span className="block text-xs font-extrabold text-emerald-900 mb-3">Thông tin học sinh (Bé cần kèm)</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -147,6 +283,7 @@ export default function ParentRegisterPage() {
                     <input
                       type="text"
                       required
+                      placeholder="Bảo Nam"
                       value={childName}
                       onChange={(e) => setChildName(e.target.value)}
                       className="w-full text-xs px-3 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
@@ -174,11 +311,26 @@ export default function ParentRegisterPage() {
               <div className="pt-4">
                 <button
                   type="submit"
-                  className="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2"
+                  disabled={loading || !isOtpVerified}
+                  className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Hoàn tất đăng ký & Khám phá gia sư</span>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Đang tạo tài khoản...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Hoàn tất đăng ký & Khám phá gia sư</span>
+                    </>
+                  )}
                 </button>
+                {!isOtpVerified && (
+                  <p className="text-[11px] text-center text-slate-400 mt-2">
+                    * Bạn cần nhấn "Gửi mã xác nhận" và điền mã từ Gmail để kích hoạt nút đăng ký.
+                  </p>
+                )}
               </div>
 
               <div className="text-center text-xs text-slate-500 pt-2">

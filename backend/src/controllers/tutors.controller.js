@@ -602,6 +602,97 @@ export const tutorsController = {
     }
   },
 
+  // Admin ẩn hoặc hiển thị gia sư trên sàn công khai
+  async toggleTutorVisibility(req, res, next) {
+    try {
+      const { id } = req.params;
+      const tutor = await prisma.tutorProfile.findUnique({ where: { id } });
+      if (!tutor) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ gia sư' });
+      }
+
+      const newStatus = tutor.status === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+      const updated = await prisma.tutorProfile.update({
+        where: { id },
+        data: { status: newStatus },
+      });
+
+      res.json({
+        success: true,
+        data: updated,
+        message: newStatus === 'ACTIVE'
+          ? 'Đã bật hiển thị gia sư trên sàn công khai'
+          : 'Đã tạm ẩn hồ sơ gia sư khỏi sàn công khai',
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Admin xóa gia sư đã được duyệt
+  async deleteTutor(req, res, next) {
+    try {
+      const { id } = req.params;
+      const tutor = await prisma.tutorProfile.findUnique({
+        where: { id },
+        include: {
+          classes: true,
+          reports: true,
+          offers: true,
+        },
+      });
+
+      if (!tutor) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ gia sư' });
+      }
+
+      const hasHistory = (tutor.classes?.length > 0) || (tutor.reports?.length > 0);
+
+      if (hasHistory) {
+        // Có dữ liệu ràng buộc lịch sử lớp/báo cáo -> Soft-delete & vô hiệu hóa
+        await prisma.$transaction(async (tx) => {
+          await tx.tutorProfile.update({
+            where: { id },
+            data: { status: 'SUSPENDED' },
+          });
+
+          await tx.user.update({
+            where: { id: tutor.userId },
+            data: { active: false, deletedAt: new Date() },
+          });
+        });
+
+        return res.json({
+          success: true,
+          message: 'Gia sư đã có lịch sử lớp học. Hệ thống đã đình chỉ và vô hiệu hóa tài khoản an toàn.',
+        });
+      } else {
+        // Chưa có lịch sử lớp học -> Xóa triệt để
+        await prisma.$transaction(async (tx) => {
+          await tx.tutorSubject.deleteMany({ where: { tutorId: id } });
+          await tx.tutorAvailability.deleteMany({ where: { tutorId: id } });
+          await tx.classOffer.deleteMany({ where: { tutorId: id } });
+          await tx.tutorProfile.delete({ where: { id } });
+
+          // Gỡ role TUTOR khỏi user
+          const tutorRole = await tx.role.findUnique({ where: { code: 'TUTOR' } });
+          if (tutorRole) {
+            await tx.userRole.deleteMany({
+              where: { userId: tutor.userId, roleId: tutorRole.id },
+            });
+          }
+        });
+
+        return res.json({
+          success: true,
+          message: 'Đã xóa hoàn toàn hồ sơ gia sư thành công.',
+        });
+      }
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // Upload CV, bằng cấp, chứng chỉ cho hồ sơ ứng viên
   async uploadAttachment(req, res, next) {
     try {

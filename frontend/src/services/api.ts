@@ -1,71 +1,251 @@
 // frontend/src/services/api.ts
 // Client API tập trung kết nối Frontend với Backend EdTech
 
-const getHeaders = (isMultipart = false) => {
-  const token = localStorage.getItem('token') || localStorage.getItem('viettutor_token') || localStorage.getItem('auth_token');
+// ============================================================
+// 1. TOKEN MANAGEMENT — 1 nguồn duy nhất
+// ============================================================
+const TOKEN_KEY = 'viettutor_token';
+const LEGACY_TOKEN_KEYS = ['token', 'auth_token'] as const;
+const CACHE_KEYS = ['viettutor_current_user', 'viettutor_staff_dept'] as const;
+
+export const getToken = (): string | null => {
+  const primary = localStorage.getItem(TOKEN_KEY);
+  if (primary) return primary;
+  // Tương thích ngược: đọc token cũ nếu key chính chưa có
+  for (const key of LEGACY_TOKEN_KEYS) {
+    const t = localStorage.getItem(key);
+    if (t) return t;
+  }
+  return null;
+};
+
+export const hasToken = (): boolean => !!getToken();
+
+const setToken = (token: string) => {
+  // TODO: Khi toàn bộ app đã refactor, chỉ giữ TOKEN_KEY.
+  // Ghi cả 3 keys để code cũ vẫn hoạt động trong giai đoạn chuyển đổi.
+  localStorage.setItem(TOKEN_KEY, token);
+  for (const key of LEGACY_TOKEN_KEYS) {
+    localStorage.setItem(key, token);
+  }
+};
+
+export const clearToken = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  for (const key of LEGACY_TOKEN_KEYS) {
+    localStorage.removeItem(key);
+  }
+  for (const key of CACHE_KEYS) {
+    localStorage.removeItem(key);
+  }
+};
+
+// ============================================================
+// 2. UNAUTHORIZED HANDLER — xử lý 401 tập trung
+// AuthContext đăng ký handler để logout + redirect
+// ============================================================
+type UnauthorizedHandler = (() => void) | null;
+let onUnauthorized: UnauthorizedHandler = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler) {
+  onUnauthorized = handler;
+}
+
+// ============================================================
+// 3. ERROR CLASS
+// ============================================================
+export class ApiError extends Error {
+  status: number;
+  data?: any;
+  constructor(message: string, status: number, data?: any) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.data = data;
+  }
+}
+
+// ============================================================
+// 4. HEADERS + RESPONSE HANDLER
+// ============================================================
+const getHeaders = (isMultipart = false): Record<string, string> => {
+  const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
   if (!isMultipart) headers['Content-Type'] = 'application/json';
   return headers;
 };
 
-const handleResponse = async (res: Response) => {
-  let data: any;
+interface HandleOptions {
+  /** Bỏ qua handler 401 — dùng cho endpoint login/register/otp */
+  skipAuthHandler?: boolean;
+}
+
+const handleResponse = async (res: Response, options: HandleOptions = {}) => {
+  let data: any = {};
   try {
     data = await res.json();
   } catch {
     data = {};
   }
-  if (!res.ok) {
-    throw new Error(data.message || `Lỗi máy chủ (${res.status})`);
+
+  // Xử lý 401 tập trung — trừ khi caller yêu cầu bỏ qua
+  if (res.status === 401 && !options.skipAuthHandler) {
+    clearToken();
+    onUnauthorized?.();
+    throw new ApiError(
+      data.message || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+      401,
+      data
+    );
   }
+
+  if (!res.ok) {
+    throw new ApiError(
+      data.message || `Lỗi máy chủ (${res.status})`,
+      res.status,
+      data
+    );
+  }
+
   return data;
 };
 
+// ============================================================
+// 5. REQUEST HELPER
+// ============================================================
+type RequestOptions = {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: any;
+  multipart?: FormData;
+  query?: Record<string, any>;
+  signal?: AbortSignal;
+  skipAuthHandler?: boolean;
+};
+
+async function request<T = any>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const {
+    method = 'GET',
+    body,
+    multipart,
+    query,
+    signal,
+    skipAuthHandler,
+  } = options;
+
+  let url = path;
+  if (query) {
+    const params = new URLSearchParams();
+    Object.entries(query).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        params.append(k, String(v));
+      }
+    });
+    const qs = params.toString();
+    if (qs) url += (url.includes('?') ? '&' : '?') + qs;
+  }
+
+  const fetchOptions: RequestInit = {
+    method,
+    headers: getHeaders(!!multipart),
+    signal,
+  };
+
+  // Chặn cứng: GET không được có body
+  if (method !== 'GET' && method !== 'HEAD') {
+    if (multipart) {
+      fetchOptions.body = multipart;
+    } else if (body !== undefined) {
+      fetchOptions.body = JSON.stringify(body);
+    }
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, fetchOptions);
+  } catch (err: any) {
+    if (err?.name === 'AbortError') throw err;
+    throw new ApiError(
+      err?.message || 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng.',
+      0
+    );
+  }
+
+  return handleResponse(res, { skipAuthHandler });
+}
+
+// ============================================================
+// 6. API CLIENT
+// ============================================================
 export const api = {
   // ============================================
   // 1. XÁC THỰC & NGƯỜI DÙNG (AUTH)
   // ============================================
   auth: {
-    async login(identifier: string, password = 'Password@2026') {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ identifier, password }),
-      });
-      const data = await handleResponse(res);
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('viettutor_token', data.token);
-        localStorage.setItem('auth_token', data.token);
-      }
+    async login(identifier: string, password: string) {
+      // skipAuthHandler: sai password KHÔNG phải mất phiên
+      const data = await request<{ token?: string; user?: any }>(
+        '/api/auth/login',
+        {
+          method: 'POST',
+          body: { identifier, password },
+          skipAuthHandler: true,
+        }
+      );
+      if (data.token) setToken(data.token);
       return data;
     },
 
-    async registerParent(payload: { fullName: string; phone: string; email?: string; password?: string; province?: string; address?: string }) {
-      const res = await fetch('/api/auth/register-parent', {
+    async registerParent(payload: {
+      username?: string;
+      fullName: string;
+      phone: string;
+      email?: string;
+      password?: string;
+      province?: string;
+      address?: string;
+    }) {
+      return request('/api/auth/register-parent', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
+        skipAuthHandler: true,
       });
-      return handleResponse(res);
     },
 
     async getMe() {
-      const res = await fetch('/api/auth/me', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/auth/me');
     },
 
     async logout() {
-      localStorage.removeItem('token');
-      localStorage.removeItem('viettutor_token');
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('viettutor_current_user');
+      // Clear local trước — logout phải luôn thành công ở client
+      clearToken();
       try {
-        await fetch('/api/auth/logout', { method: 'POST', headers: getHeaders() });
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: getHeaders(),
+        });
       } catch {
         // ignore
       }
+    },
+
+    async sendEmailOtp(email: string, type = 'PARENT_REGISTER') {
+      return request('/api/auth/send-email-otp', {
+        method: 'POST',
+        body: { email, type },
+        skipAuthHandler: true,
+      });
+    },
+
+    async verifyEmailOtp(email: string, code: string) {
+      return request('/api/auth/verify-email-otp', {
+        method: 'POST',
+        body: { email, code },
+        skipAuthHandler: true,
+      });
     },
   },
 
@@ -73,101 +253,100 @@ export const api = {
   // 2. GIA SƯ (TUTORS)
   // ============================================
   tutors: {
-    async getPublicTutors(params?: { search?: string; subject?: string; grade?: string; mode?: string; maxRate?: number }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/tutors/public?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+    async getPublicTutors(params?: {
+      search?: string;
+      subject?: string;
+      grade?: string;
+      mode?: string;
+      maxRate?: number;
+    }) {
+      return request('/api/tutors/public', { query: params });
     },
 
     async getPublicTutorDetail(id: string) {
-      const res = await fetch(`/api/tutors/public/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/tutors/public/${id}`);
     },
 
     async apply(payload: any) {
-      const res = await fetch('/api/tutors/apply', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request('/api/tutors/apply', { method: 'POST', body: payload });
     },
 
     async getMyOffers() {
-      const res = await fetch('/api/tutors/my-offers', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/tutors/my-offers');
     },
 
     async respondOffer(offerId: string, status: 'ACCEPTED' | 'DECLINED') {
-      const res = await fetch(`/api/tutors/offers/${offerId}/respond`, {
+      return request(`/api/tutors/offers/${offerId}/respond`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ status }),
+        body: { status },
       });
-      return handleResponse(res);
     },
 
     async getMyClasses() {
-      const res = await fetch('/api/tutors/my-classes', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/tutors/my-classes');
     },
 
     async getApplications(params?: { status?: string; search?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/tutors/applications?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/tutors/applications', { query: params });
     },
 
     async getApplicationDetail(id: string) {
-      const res = await fetch(`/api/tutors/applications/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/tutors/applications/${id}`);
     },
 
-    async reviewApplication(id: string, payload: { status: string; rejectReason?: string; interviewAt?: string; interviewNote?: string }) {
-      const res = await fetch(`/api/tutors/applications/${id}/review`, {
+    async reviewApplication(
+      id: string,
+      payload: {
+        status: string;
+        rejectReason?: string;
+        interviewAt?: string;
+        interviewNote?: string;
+      }
+    ) {
+      return request(`/api/tutors/applications/${id}/review`, {
         method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async uploadApplicationAttachment(id: string, formData: FormData) {
-      const res = await fetch(`/api/tutors/applications/${id}/attachments`, {
+      return request(`/api/tutors/applications/${id}/attachments`, {
         method: 'POST',
-        headers: getHeaders(true),
-        body: formData,
+        multipart: formData,
       });
-      return handleResponse(res);
     },
 
     async getAllTutors(params?: { status?: string; search?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/tutors?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/tutors', { query: params });
     },
 
     async updateStatus(id: string, status: string) {
-      const res = await fetch(`/api/tutors/${id}/status`, {
+      return request(`/api/tutors/${id}/status`, {
         method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({ status }),
+        body: { status },
       });
-      return handleResponse(res);
     },
 
     async getPerformance(id: string) {
-      const res = await fetch(`/api/tutors/${id}/performance`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/tutors/${id}/performance`);
     },
 
-    async recordViolation(id: string, payload: { type: string; note?: string; severity?: number }) {
-      const res = await fetch(`/api/tutors/${id}/violations`, {
+    async recordViolation(
+      id: string,
+      payload: { type: string; note?: string; severity?: number }
+    ) {
+      return request(`/api/tutors/${id}/violations`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
+    },
+
+    async toggleVisibility(id: string) {
+      return request(`/api/tutors/${id}/toggle-visibility`, { method: 'PATCH' });
+    },
+
+    async deleteTutor(id: string) {
+      return request(`/api/tutors/${id}`, { method: 'DELETE' });
     },
   },
 
@@ -176,100 +355,82 @@ export const api = {
   // ============================================
   forum: {
     async getCategories() {
-      const res = await fetch('/api/forum/categories', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/forum/categories');
     },
 
-    async getPosts(params?: { categoryId?: number; categoryCode?: string; search?: string; tag?: string; sort?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/forum/posts?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+    async getPosts(params?: {
+      categoryId?: number;
+      categoryCode?: string;
+      search?: string;
+      tag?: string;
+      sort?: string;
+    }) {
+      return request('/api/forum/posts', { query: params });
     },
 
     async getPostDetail(id: string) {
-      const res = await fetch(`/api/forum/posts/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/forum/posts/${id}`);
     },
 
-    async createPost(payload: { title: string; content: string; categoryId?: number; categoryCode?: string; tags?: string[] }) {
-      const res = await fetch('/api/forum/posts', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+    async createPost(payload: {
+      title: string;
+      content: string;
+      categoryId?: number;
+      categoryCode?: string;
+      tags?: string[];
+    }) {
+      return request('/api/forum/posts', { method: 'POST', body: payload });
     },
 
-    async addComment(postId: string, payload: { content: string; parentCommentId?: string }) {
-      const res = await fetch(`/api/forum/posts/${postId}/comments`, {
+    async addComment(
+      postId: string,
+      payload: { content: string; parentCommentId?: string }
+    ) {
+      return request(`/api/forum/posts/${postId}/comments`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async toggleLike(postId: string) {
-      const res = await fetch(`/api/forum/posts/${postId}/like`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/forum/posts/${postId}/like`, { method: 'POST' });
     },
 
     async getAdminPosts(params?: { status?: string; search?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/forum/admin/posts?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/forum/admin/posts', { query: params });
     },
 
     async hidePost(id: string, reason?: string) {
-      const res = await fetch(`/api/forum/posts/${id}/hide`, {
+      return request(`/api/forum/posts/${id}/hide`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ reason }),
+        body: { reason },
       });
-      return handleResponse(res);
     },
 
     async unhidePost(id: string) {
-      const res = await fetch(`/api/forum/posts/${id}/unhide`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/forum/posts/${id}/unhide`, { method: 'POST' });
     },
 
     async deletePost(id: string) {
-      const res = await fetch(`/api/forum/posts/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/forum/posts/${id}`, { method: 'DELETE' });
     },
 
     async flagPost(id: string, payload: { reason: string; commentId?: string }) {
-      const res = await fetch(`/api/forum/posts/${id}/flag`, {
+      return request(`/api/forum/posts/${id}/flag`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async getFlags(params?: { status?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/forum/flags?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/forum/flags', { query: params });
     },
 
     async handleFlag(id: string, payload: { status: string; action?: string }) {
-      const res = await fetch(`/api/forum/flags/${id}/handle`, {
+      return request(`/api/forum/flags/${id}/handle`, {
         method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
   },
 
@@ -278,103 +439,82 @@ export const api = {
   // ============================================
   assessments: {
     async getTests() {
-      const res = await fetch('/api/assessments/tests', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/assessments/tests');
     },
 
     async getTestDetail(id: string) {
-      const res = await fetch(`/api/assessments/tests/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/assessments/tests/${id}`);
     },
 
     async startAttempt(payload: { testId: string; applicationId?: string }) {
-      const res = await fetch('/api/assessments/attempts', {
+      return request('/api/assessments/attempts', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
-    async submitAttempt(attemptId: string, answers: Array<{ questionId: string | number; answer: any }>) {
-      const res = await fetch(`/api/assessments/attempts/${attemptId}/submit`, {
+    async submitAttempt(
+      attemptId: string,
+      answers: Array<{ questionId: string | number; answer: any }>
+    ) {
+      return request(`/api/assessments/attempts/${attemptId}/submit`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ answers }),
+        body: { answers },
       });
-      return handleResponse(res);
     },
 
     async getAttempts(params?: { status?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/assessments/attempts?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/assessments/attempts', { query: params });
     },
 
     async getAttemptDetail(id: string) {
-      const res = await fetch(`/api/assessments/attempts/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/assessments/attempts/${id}`);
     },
 
-    async gradeAttempt(id: string, payload: { grades: any[]; evaluatorNotes?: string; passed?: boolean }) {
-      const res = await fetch(`/api/assessments/attempts/${id}/grade`, {
+    async gradeAttempt(
+      id: string,
+      payload: { grades: any[]; evaluatorNotes?: string; passed?: boolean }
+    ) {
+      return request(`/api/assessments/attempts/${id}/grade`, {
         method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async createTest(payload: any) {
-      const res = await fetch('/api/assessments/tests', {
+      return request('/api/assessments/tests', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async updateTest(id: string, payload: any) {
-      const res = await fetch(`/api/assessments/tests/${id}`, {
+      return request(`/api/assessments/tests/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async deleteTest(id: string) {
-      const res = await fetch(`/api/assessments/tests/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/assessments/tests/${id}`, { method: 'DELETE' });
     },
 
     async addQuestions(testId: string, questions: any[]) {
-      const res = await fetch(`/api/assessments/tests/${testId}/questions`, {
+      return request(`/api/assessments/tests/${testId}/questions`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ questions }),
+        body: { questions },
       });
-      return handleResponse(res);
     },
 
     async updateQuestion(id: string, payload: any) {
-      const res = await fetch(`/api/assessments/questions/${id}`, {
+      return request(`/api/assessments/questions/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async deleteQuestion(id: string) {
-      const res = await fetch(`/api/assessments/questions/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/assessments/questions/${id}`, { method: 'DELETE' });
     },
   },
 
@@ -382,63 +522,75 @@ export const api = {
   // 5. YÊU CẦU TÌM GIA SƯ & GHÉP LỚP (CLASS REQUESTS)
   // ============================================
   classRequests: {
-    async getRequests(params?: { status?: string; subjectLevelId?: number; onBoard?: boolean }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/class-requests?${query}`, { headers: getHeaders() });
-      const data = await handleResponse(res);
-      // Format để tương thích với các view
+    async getRequests(params?: {
+      status?: string;
+      subjectLevelId?: number;
+      onBoard?: boolean;
+    }) {
+      const data = await request('/api/class-requests', { query: params });
       const formatted = (data.data || []).map((r: any) => ({
         id: r.id,
         code: r.code,
-        studentName: r.student?.fullName || 'Học sinh',
-        parentName: r.parent?.user?.fullName || 'Phụ huynh',
-        phone: r.parent?.user?.phone || '',
-        subject: r.subjectLevel?.subject?.name || 'Toán Tiểu học',
-        grade: r.student?.gradeLevel?.name || r.subjectLevel?.gradeLevel?.name || 'Tiểu học',
-        sessionsPerWeek: r.sessionsPerWeek || 2,
-        durationMinutes: r.sessionDurationMin || 90,
-        budgetPerSession: Number(r.budgetPerSession || 250000),
-        location: r.address || r.province || 'Hà Nội',
-        mode: r.teachingMode || 'OFFLINE',
-        status: r.status,
-        requirements: r.note || 'Tìm gia sư kiên nhẫn, kèm bài tập trên lớp.',
-        createdAt: r.createdAt ? new Date(r.createdAt).toLocaleDateString('vi-VN') : '',
-        urgency: 'HIGH',
+        studentName: r.student?.fullName ?? null,
+        parentName: r.parent?.user?.fullName ?? null,
+        phone: r.parent?.user?.phone ?? null,
+        subject: r.subjectLevel?.subject?.name ?? null,
+        grade:
+          r.student?.gradeLevel?.name ??
+          r.subjectLevel?.gradeLevel?.name ??
+          null,
+        sessionsPerWeek: r.sessionsPerWeek ?? null,
+        durationMinutes: r.sessionDurationMin ?? null,
+        budgetPerSession:
+          r.budgetPerSession != null ? Number(r.budgetPerSession) : null,
+        location: r.address ?? r.province ?? null,
+        mode: r.teachingMode ?? null,
+        status: r.status ?? null,
+        requirements: r.note ?? null,
+        createdAt: r.createdAt
+          ? new Date(r.createdAt).toLocaleDateString('vi-VN')
+          : null,
+        urgency: r.status === 'NEW' ? 'HIGH' : 'NORMAL',
         offers: r.offers || [],
       }));
       return { success: true, data: formatted, raw: data.data };
     },
 
     async createRequest(payload: any) {
-      const res = await fetch('/api/class-requests', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request('/api/class-requests', { method: 'POST', body: payload });
     },
 
-    async sendParallelOffers(requestId: string, payload: { tutorIds: string[]; proposedFee?: number; note?: string; expiresHours?: number }) {
-      const res = await fetch(`/api/class-requests/${requestId}/offers`, {
+    async sendParallelOffers(
+      requestId: string,
+      payload: {
+        tutorIds: string[];
+        proposedFee?: number;
+        note?: string;
+        expiresHours?: number;
+      }
+    ) {
+      return request(`/api/class-requests/${requestId}/offers`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
-    async selectOffer(requestId: string, payload: { offerId: string; createClassDirectly?: boolean; classTitle?: string }) {
-      const res = await fetch(`/api/class-requests/${requestId}/select-offer`, {
+    async selectOffer(
+      requestId: string,
+      payload: {
+        offerId: string;
+        createClassDirectly?: boolean;
+        classTitle?: string;
+      }
+    ) {
+      return request(`/api/class-requests/${requestId}/select-offer`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async getSuggestions(requestId: string) {
-      const res = await fetch(`/api/class-requests/${requestId}/suggestions`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/class-requests/${requestId}/suggestions`);
     },
   },
 
@@ -446,50 +598,41 @@ export const api = {
   // 6. LỚP HỌC (CLASSES)
   // ============================================
   classes: {
-    async getClasses(params?: { status?: string; format?: string; subjectLevelId?: number }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/classes?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+    async getClasses(params?: {
+      status?: string;
+      format?: string;
+      subjectLevelId?: number;
+    }) {
+      return request('/api/classes', { query: params });
     },
 
     async getClassDetail(id: string) {
-      const res = await fetch(`/api/classes/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/classes/${id}`);
     },
 
     async createClass(payload: any) {
-      const res = await fetch('/api/classes', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request('/api/classes', { method: 'POST', body: payload });
     },
 
-    async enrollStudent(classId: string, payload: { studentId: string; feePerSession?: number }) {
-      const res = await fetch(`/api/classes/${classId}/enroll`, {
+    async enrollStudent(
+      classId: string,
+      payload: { studentId: string; feePerSession?: number }
+    ) {
+      return request(`/api/classes/${classId}/enroll`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async approveClass(classId: string) {
-      const res = await fetch(`/api/classes/${classId}/approve`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/classes/${classId}/approve`, { method: 'POST' });
     },
 
     async rejectClass(classId: string, rejectReason?: string) {
-      const res = await fetch(`/api/classes/${classId}/reject`, {
+      return request(`/api/classes/${classId}/reject`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ rejectReason }),
+        body: { rejectReason },
       });
-      return handleResponse(res);
     },
   },
 
@@ -497,64 +640,64 @@ export const api = {
   // 7. SỔ LIÊN LẠC (LESSON REPORTS)
   // ============================================
   reports: {
-    async getLessonReports(params?: { studentId?: string; classId?: string; status?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/lesson-reports?${query}`, { headers: getHeaders() });
-      const data = await handleResponse(res);
+    async getLessonReports(params?: {
+      studentId?: string;
+      classId?: string;
+      status?: string;
+    }) {
+      const data = await request('/api/lesson-reports', { query: params });
       const formatted = (data.data || []).map((r: any) => ({
         id: r.id,
-        classId: r.classId,
-        lessonNumber: r.lesson?.sessionNo || 1,
-        studentName: r.student?.fullName || 'Bé Bảo Nam',
-        subject: r.class?.subjectLevel?.subject?.name || 'Toán Lớp 4',
-        tutorName: r.tutor?.user?.fullName || 'ThS. Nguyễn Hoàng Nam',
-        date: r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('vi-VN') : 'Gần đây',
-        topic: r.topic || 'Ôn tập kiến thức và rèn luyện kỹ năng',
-        attendance: r.attendance || 'PRESENT',
-        comprehensionScore: 9,
-        focusScore: 9,
-        homeworkScore: 8.5,
-        teacherFeedback: r.tutorComment || 'Học sinh hiểu bài tốt, làm đúng các dạng bài tập.',
-        nextSteps: 'Tiếp tục luyện tập dạng toán vận dụng cao.',
-        homeworkAssigned: r.homeworkAssigned || 'Bài tập phiếu số 3.',
-        starsAwarded: 15,
-        status: r.status,
-        parentFeedback: r.parentFeedback,
+        classId: r.lesson?.classId ?? null,
+        lessonNumber: r.lesson?.sessionNo ?? null,
+        studentName: r.student?.fullName ?? null,
+        subject: r.lesson?.class?.subjectLevel?.subject?.name ?? null,
+        tutorName: r.tutor?.user?.fullName ?? null,
+        date: r.submittedAt
+          ? new Date(r.submittedAt).toLocaleDateString('vi-VN')
+          : null,
+        topic: r.lessonContent ?? null,
+        attendance: r.attendance ?? null,
+        comprehensionScore: null,
+        focusScore: null,
+        homeworkScore: null,
+        teacherFeedback: r.tutorComment ?? null,
+        nextSteps: null,
+        homeworkAssigned: r.homeworkNote ?? null,
+        starsAwarded: null,
+        status: r.status ?? null,
+        parentFeedback: r.parentFeedback ?? null,
         attachments: r.attachments || [],
       }));
       return { success: true, data: formatted, raw: data.data };
     },
 
     async getReportDetail(id: string) {
-      const res = await fetch(`/api/lesson-reports/${id}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request(`/api/lesson-reports/${id}`);
     },
 
     async submitReport(lessonId: string, formData: FormData) {
-      const res = await fetch(`/api/lesson-reports/lessons/${lessonId}/reports`, {
+      return request(`/api/lesson-reports/lessons/${lessonId}/reports`, {
         method: 'POST',
-        headers: getHeaders(true),
-        body: formData,
+        multipart: formData,
       });
-      return handleResponse(res);
     },
 
     async confirmReport(id: string, parentFeedback?: string) {
-      const res = await fetch(`/api/lesson-reports/${id}/confirm`, {
+      return request(`/api/lesson-reports/${id}/confirm`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ parentFeedback }),
+        body: { parentFeedback },
       });
-      return handleResponse(res);
     },
 
-    async confirmOnBehalf(id: string, payload: { careCaseId?: string; note: string }) {
-      const res = await fetch(`/api/lesson-reports/${id}/confirm-on-behalf`, {
+    async confirmOnBehalf(
+      id: string,
+      payload: { careCaseId?: string; note: string }
+    ) {
+      return request(`/api/lesson-reports/${id}/confirm-on-behalf`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
   },
 
@@ -562,54 +705,63 @@ export const api = {
   // 8. CHĂM SÓC KHÁCH HÀNG & GIA SƯ (CARE CASES)
   // ============================================
   care: {
-    async getCareCases(params?: { team?: string; status?: string; type?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/care-cases?${query}`, { headers: getHeaders() });
-      const data = await handleResponse(res);
+    async getCareCases(params?: {
+      team?: string;
+      status?: string;
+      type?: string;
+    }) {
+      const data = await request('/api/care-cases', { query: params });
       const formatted = (data.data || []).map((c: any) => ({
         id: c.id,
-        caseCode: c.code,
-        type: c.type || 'LATE_REPORT_24H',
-        studentName: c.student?.fullName || 'Học sinh',
-        tutorName: c.tutor?.user?.fullName || 'Gia sư',
-        parentName: c.parent?.user?.fullName || 'Phụ huynh',
-        phone: c.parent?.user?.phone || c.tutor?.user?.phone || '0988 123 456',
-        status: c.status,
-        priority: c.priority >= 3 ? 'CRITICAL' : c.priority === 2 ? 'HIGH' : 'MEDIUM',
-        description: c.note || c.title || 'Cần hỗ trợ chăm sóc theo quy trình',
-        lastUpdated: c.updatedAt ? new Date(c.updatedAt).toLocaleString('vi-VN') : 'Vừa xong',
-        actionTaken: c.actionTaken || 'Đã ghi nhận vào hệ thống CSKH',
+        caseCode: c.code ?? null,
+        type: c.type ?? null,
+        studentName: c.class?.students?.[0]?.student?.fullName ?? null,
+        tutorName: c.tutor?.user?.fullName ?? null,
+        parentName: c.parent?.user?.fullName ?? null,
+        phone: c.parent?.user?.phone ?? c.tutor?.user?.phone ?? null,
+        status: c.status ?? null,
+        priority:
+          c.priority >= 3 ? 'CRITICAL' : c.priority === 2 ? 'HIGH' : 'MEDIUM',
+        description: c.title || c.detail || null,
+        lastUpdated: c.updatedAt
+          ? new Date(c.updatedAt).toLocaleString('vi-VN')
+          : null,
+        actionTaken: c.resolution ?? null,
       }));
       return { success: true, data: formatted, raw: data.data };
     },
 
     async getUnconfirmedReports(olderThanHours = 24) {
-      const res = await fetch(`/api/care-cases/unconfirmed-reports?olderThanHours=${olderThanHours}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/care-cases/unconfirmed-reports', {
+        query: { olderThanHours },
+      });
     },
 
-    async addContactLog(caseId: string, payload: { target: string; channel: string; outcome: string; note: string; followUpAt?: string }) {
-      const res = await fetch(`/api/care-cases/${caseId}/contacts`, {
+    async addContactLog(
+      caseId: string,
+      payload: {
+        target: string;
+        channel: string;
+        outcome: string;
+        note: string;
+        followUpAt?: string;
+      }
+    ) {
+      return request(`/api/care-cases/${caseId}/contacts`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async updateStatus(caseId: string, status: string) {
-      const res = await fetch(`/api/care-cases/${caseId}/status`, {
+      return request(`/api/care-cases/${caseId}/status`, {
         method: 'PATCH',
-        headers: getHeaders(),
-        body: JSON.stringify({ status }),
+        body: { status },
       });
-      return handleResponse(res);
     },
 
     async getStats(params?: { team?: string }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/care-cases/stats?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/care-cases/stats', { query: params });
     },
   },
 
@@ -618,37 +770,32 @@ export const api = {
   // ============================================
   kids: {
     async getTodayTasks() {
-      try {
-        const res = await fetch('/api/kids/today', { headers: getHeaders() });
-        const data = await handleResponse(res);
-        return data;
-      } catch {
-        return { success: true, data: { tasks: [], availableGames: [] } };
-      }
+      return request('/api/kids/today');
     },
 
     async submitTask(taskId: string, formData: FormData) {
-      const res = await fetch(`/api/kids/tasks/${taskId}/submit`, {
+      return request(`/api/kids/tasks/${taskId}/submit`, {
         method: 'POST',
-        headers: getHeaders(true),
-        body: formData,
+        multipart: formData,
       });
-      return handleResponse(res);
     },
 
-    async finishGameSession(payload: { gameId: string; score: number; durationSeconds: number }) {
-      const res = await fetch('/api/kids/game-sessions/finish', {
+    async finishGameSession(payload: {
+      gameId: string;
+      score: number;
+      durationSeconds: number;
+    }) {
+      return request('/api/kids/game-sessions/finish', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async getRewards(studentId?: string) {
-      const endpoint = studentId ? `/api/kids/students/${studentId}/rewards` : '/api/kids/rewards';
-      const res = await fetch(endpoint, { headers: getHeaders() });
-      return handleResponse(res);
+      const endpoint = studentId
+        ? `/api/kids/students/${studentId}/rewards`
+        : '/api/kids/rewards';
+      return request(endpoint);
     },
   },
 
@@ -657,60 +804,56 @@ export const api = {
   // ============================================
   learning: {
     async getGames() {
-      const res = await fetch('/api/learning/games', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/learning/games');
     },
 
-    async createGame(payload: { code: string; title: string; description?: string; gameType: string; ruleConfig?: any }) {
-      const res = await fetch('/api/learning/games', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+    async createGame(payload: {
+      code: string;
+      name: string;
+      description?: string;
+      subjectId?: number;
+      minGradeOrder?: number;
+      maxGradeOrder?: number;
+      thumbnailUrl?: string;
+      engineConfig?: any;
+    }) {
+      return request('/api/learning/games', { method: 'POST', body: payload });
     },
 
     async updateGame(id: string, payload: any) {
-      const res = await fetch(`/api/learning/games/${id}`, {
+      return request(`/api/learning/games/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async deleteGame(id: string) {
-      const res = await fetch(`/api/learning/games/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/learning/games/${id}`, { method: 'DELETE' });
     },
 
-    async createContentSet(payload: { gameId: string; subjectLevelId: number; title: string; data: any }) {
-      const res = await fetch('/api/learning/game-content-sets', {
+    async createContentSet(payload: {
+      gameId: string;
+      subjectLevelId: number;
+      title: string;
+      data: any;
+    }) {
+      return request('/api/learning/game-content-sets', {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async updateContentSet(id: string, payload: any) {
-      const res = await fetch(`/api/learning/game-content-sets/${id}`, {
+      return request(`/api/learning/game-content-sets/${id}`, {
         method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async deleteContentSet(id: string) {
-      const res = await fetch(`/api/learning/game-content-sets/${id}`, {
+      return request(`/api/learning/game-content-sets/${id}`, {
         method: 'DELETE',
-        headers: getHeaders(),
       });
-      return handleResponse(res);
     },
   },
 
@@ -719,26 +862,18 @@ export const api = {
   // ============================================
   students: {
     async getStudents() {
-      const res = await fetch('/api/students', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/students');
     },
 
     async createStudent(payload: any) {
-      const res = await fetch('/api/students', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request('/api/students', { method: 'POST', body: payload });
     },
 
     async setStudentPin(id: string, pin: string) {
-      const res = await fetch(`/api/students/${id}/pin`, {
+      return request(`/api/students/${id}/pin`, {
         method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify({ pin }),
+        body: { pin },
       });
-      return handleResponse(res);
     },
   },
 
@@ -747,19 +882,18 @@ export const api = {
   // ============================================
   catalog: {
     async getSubjects() {
-      const res = await fetch('/api/catalog/subjects', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/catalog/subjects');
     },
 
     async getGradeLevels() {
-      const res = await fetch('/api/catalog/grade-levels', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/catalog/grade-levels');
     },
 
-    async getSubjectLevels(params?: { gradeLevelId?: number; subjectId?: number }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/catalog/subject-levels?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+    async getSubjectLevels(params?: {
+      gradeLevelId?: number;
+      subjectId?: number;
+    }) {
+      return request('/api/catalog/subject-levels', { query: params });
     },
   },
 
@@ -768,27 +902,33 @@ export const api = {
   // ============================================
   admin: {
     async getStats() {
-      const [classesRes, reportsRes, careRes, tutorsRes, studentsRes] = await Promise.all([
-        fetch('/api/classes', { headers: getHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/lesson-reports', { headers: getHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/care-cases', { headers: getHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/tutors', { headers: getHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
-        fetch('/api/students', { headers: getHeaders() }).then((r) => r.json()).catch(() => ({ data: [] })),
-      ]);
+      // ⚠️ Workaround — khi backend có endpoint /admin/stats riêng,
+      // thay bằng: return request('/api/admin/stats');
+      const [classesRes, reportsRes, careRes, tutorsRes, studentsRes] =
+        await Promise.all([
+          request('/api/classes').catch(() => ({ data: [] })),
+          request('/api/lesson-reports').catch(() => ({ data: [] })),
+          request('/api/care-cases').catch(() => ({ data: [] })),
+          request('/api/tutors').catch(() => ({ data: [] })),
+          request('/api/students').catch(() => ({ data: [] })),
+        ]);
 
-      const classes = classesRes.data || [];
-      const reports = reportsRes.data || [];
-      const careCases = careRes.data || [];
-      const tutors = tutorsRes.data || [];
-      const students = studentsRes.data || [];
+      const classes = (classesRes as any).data || [];
+      const reports = (reportsRes as any).data || [];
+      const careCases = (careRes as any).data || [];
+      const tutors = (tutorsRes as any).data || [];
+      const students = (studentsRes as any).data || [];
 
       return {
         totalClasses: classes.length,
         activeClasses: classes.filter((c: any) => c.status === 'ACTIVE').length,
         totalStudents: students.length,
         totalTutors: tutors.length,
-        pendingReports: reports.filter((r: any) => r.status === 'SUBMITTED').length,
-        openCareCases: careCases.filter((c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length,
+        pendingReports: reports.filter((r: any) => r.status === 'SUBMITTED')
+          .length,
+        openCareCases: careCases.filter(
+          (c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS'
+        ).length,
         classes,
         reports,
         careCases,
@@ -797,73 +937,55 @@ export const api = {
       };
     },
 
-    async getUsers(params?: { departmentId?: string; role?: string; search?: string; page?: number; limit?: number }) {
-      const query = params ? `?${new URLSearchParams(params as any).toString()}` : '';
-      const res = await fetch(`/api/users${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+    async getUsers(params?: {
+      departmentId?: string;
+      role?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }) {
+      return request('/api/users', { query: params });
     },
 
     async createUser(payload: any) {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request('/api/users', { method: 'POST', body: payload });
     },
 
     async updateUser(id: string, payload: any) {
-      const res = await fetch(`/api/users/${id}`, {
-        method: 'PUT',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
-      });
-      return handleResponse(res);
+      return request(`/api/users/${id}`, { method: 'PUT', body: payload });
     },
 
     async deleteUser(id: string) {
-      const res = await fetch(`/api/users/${id}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/users/${id}`, { method: 'DELETE' });
     },
 
     async toggleUserActive(id: string) {
-      const res = await fetch(`/api/users/${id}/toggle-active`, {
-        method: 'PATCH',
-        headers: getHeaders(),
-      });
-      return handleResponse(res);
+      return request(`/api/users/${id}/toggle-active`, { method: 'PATCH' });
     },
 
     async resetPassword(id: string, newPassword = 'password123') {
-      const res = await fetch(`/api/users/${id}/reset-password`, {
+      return request(`/api/users/${id}/reset-password`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ newPassword }),
+        body: { newPassword },
       });
-      return handleResponse(res);
     },
 
-    async banUser(id: string, payload: { durationHours: number; banReason?: string }) {
-      const res = await fetch(`/api/users/${id}/ban`, {
+    async banUser(
+      id: string,
+      payload: { durationHours: number; banReason?: string }
+    ) {
+      return request(`/api/users/${id}/ban`, {
         method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(payload),
+        body: payload,
       });
-      return handleResponse(res);
     },
 
     async getDepartments() {
-      const res = await fetch('/api/departments', { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/departments');
     },
 
     async getAuditLogs(params?: { page?: number; limit?: number }) {
-      const query = new URLSearchParams(params as any).toString();
-      const res = await fetch(`/api/admin/audit-logs?${query}`, { headers: getHeaders() });
-      return handleResponse(res);
+      return request('/api/admin/audit-logs', { query: params });
     },
   },
 };

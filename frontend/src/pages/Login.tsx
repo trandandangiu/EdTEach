@@ -12,6 +12,9 @@ const getRedirectPath = (roles: string[]): string => {
   if (roles.includes('STAFF_MATCHING')) return '/staff/matching';
   if (roles.includes('STAFF_CS')) return '/staff/care';
   if (roles.includes('STAFF_TUTOR_CARE')) return '/staff/tutor-care';
+  if (roles.includes('STAFF_ACADEMIC')) return '/staff/academic';
+  if (roles.includes('STAFF_FORUM')) return '/staff/forum';
+  if (roles.some((r) => r.startsWith('STAFF_'))) return '/staff/recruit';
   if (roles.includes('PARENT')) return '/parent/dashboard';
   if (roles.includes('TUTOR')) return '/tutor/dashboard';
   if (roles.includes('APPLICANT')) return '/apply';
@@ -22,7 +25,7 @@ const getRedirectPath = (roles: string[]): string => {
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, currentUser } = useAuth();
+  const { login } = useAuth();
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -44,9 +47,9 @@ export default function Login() {
 
     try {
       setLoading(true);
-      const success = await login(username.trim(), password);
+      const user = await login(username.trim(), password);
 
-      if (!success) {
+      if (!user) {
         setError('Tên đăng nhập hoặc mật khẩu không chính xác.');
         setLoading(false);
         return;
@@ -54,30 +57,13 @@ export default function Login() {
 
       // Ưu tiên redirect về trang trước đó nếu có (bị đá ra từ ProtectedRoute)
       const fromState = (location.state as any)?.from?.pathname;
+      if (fromState && fromState !== '/login') {
+        navigate(fromState, { replace: true });
+        return;
+      }
 
-      // Sau khi login, đợi 1 nhịp để AuthContext kịp cập nhật currentUser
-      // rồi tự lấy roles từ user vừa login để redirect
-      setTimeout(() => {
-        if (fromState && fromState !== '/login') {
-          navigate(fromState, { replace: true });
-          return;
-        }
-
-        // Fallback: đọc user từ localStorage (AuthContext đã lưu sau khi login)
-        let roles: string[] = [];
-        try {
-          const saved = localStorage.getItem('viettutor_current_user');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            roles = parsed.roles || [];
-          }
-        } catch {
-          // ignore
-        }
-
-        const target = getRedirectPath(roles);
-        navigate(target, { replace: true });
-      }, 100);
+      const target = getRedirectPath(user.roles);
+      navigate(target, { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
       setLoading(false);
@@ -166,11 +152,19 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100">
-            Chưa có tài khoản phụ huynh?{' '}
-            <Link to="/register/parent" className="font-bold text-emerald-800 hover:underline">
-              Đăng ký miễn phí
-            </Link>
+          <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100 space-y-2">
+            <div>
+              Chưa có tài khoản phụ huynh?{' '}
+              <Link to="/register/parent" className="font-bold text-emerald-800 hover:underline">
+                Đăng ký Phụ huynh
+              </Link>
+            </div>
+            <div>
+              Bạn muốn trở thành gia sư VietTutor?{' '}
+              <Link to="/apply" className="font-bold text-emerald-800 hover:underline">
+                Đăng ký làm Gia sư
+              </Link>
+            </div>
           </div>
 
           <div className="text-center text-xs text-slate-400">

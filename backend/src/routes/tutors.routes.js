@@ -31,5 +31,7 @@ router.get('/', tutorsController.getTutors);
 router.get('/:id/performance', tutorsController.getTutorPerformance);
 router.post('/:id/violations', tutorsController.recordViolation);
 router.patch('/:id/status', tutorsController.updateTutorStatus);
+router.patch('/:id/toggle-visibility', tutorsController.toggleTutorVisibility);
+router.delete('/:id', tutorsController.deleteTutor);
 
 export default router;

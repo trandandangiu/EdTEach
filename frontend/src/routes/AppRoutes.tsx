@@ -188,12 +188,13 @@ export const AppRoutes: React.FC = () => {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/staff/login" element={<StaffLogin />} />
         <Route path="/register/parent" element={<ParentRegisterPage />} />
+        <Route path="/register/tutor" element={<Navigate to="/apply" replace />} />
+        <Route path="/apply" element={<TutorApplyPage />} />
 
         {/* ===================================================================
             2. PHÂN HỆ TUYỂN DỤNG & PHÒNG THI ONLINE CHO GIA SƯ
         =================================================================== */}
         <Route element={<ProtectedRoute allowedRoles={['APPLICANT', 'TUTOR']} />}>
-          <Route path="/apply" element={<TutorApplyPage />} />
           <Route path="/apply/tests" element={<TutorTestsPage />} />
           <Route path="/apply/tests/:attemptId" element={<TutorExamRoomPage />} />
         </Route>

@@ -1,5 +1,6 @@
 // backend/src/controllers/auth.controller.js
 import { authService } from '../services/auth.service.js';
+import { emailService } from '../services/email.service.js';
 
 export const authController = {
   async login(req, res, next) {
@@ -95,6 +96,26 @@ export const authController = {
         oldPassword,
         newPassword
       );
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async sendEmailOtp(req, res, next) {
+    try {
+      const { email, type } = req.body || {};
+      const result = await emailService.sendOtp(email, type);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async verifyEmailOtp(req, res, next) {
+    try {
+      const { email, code } = req.body || {};
+      const result = await emailService.verifyOtp(email, code);
       res.json(result);
     } catch (err) {
       next(err);

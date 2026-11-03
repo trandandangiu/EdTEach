@@ -31,11 +31,17 @@ export default function StaffLogin() {
     try {
       setLoading(true);
       setError(null);
-      const success = await login(identifier, password);
-      if (success) {
-        // Tự động nhận diện hướng chuyển tiếp
-        const staffDept = localStorage.getItem('viettutor_staff_dept');
-        const match = STAFF_PRESETS.find(p => p.dept === staffDept || identifier.includes(p.username));
+      const user = await login(identifier.trim(), password);
+      if (user) {
+        const userRoles = user.roles || [];
+        if (userRoles.includes('ADMIN')) {
+          navigate('/admin', { replace: true });
+          return;
+        }
+        const staffDept = user.departmentCode || localStorage.getItem('viettutor_staff_dept');
+        const match = STAFF_PRESETS.find(
+          p => userRoles.includes(p.role) || (staffDept && p.dept === staffDept) || identifier.toLowerCase().includes(p.username.toLowerCase())
+        );
         if (match) {
           navigate(match.path, { replace: true });
         } else {
@@ -55,10 +61,41 @@ export default function StaffLogin() {
     try {
       setLoading(true);
       setError(null);
-      await login(preset.username, 'password123');
-      navigate(preset.path, { replace: true });
+      let user = null;
+      try {
+        user = await login(preset.username, 'Password@2026');
+      } catch {
+        user = await login(preset.username, 'password123');
+      }
+      if (user) {
+        navigate(preset.path, { replace: true });
+      } else {
+        setError(`Không thể đăng nhập ${preset.label}`);
+      }
     } catch (err: any) {
       setError(`Không thể đăng nhập ${preset.label}: ${err?.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickAdminLogin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      let user = null;
+      try {
+        user = await login('admin', 'Password@2026');
+      } catch {
+        user = await login('admin', 'password123');
+      }
+      if (user) {
+        navigate('/admin', { replace: true });
+      } else {
+        setError('Không thể đăng nhập Admin');
+      }
+    } catch (err: any) {
+      setError(`Không thể đăng nhập Admin: ${err?.message}`);
     } finally {
       setLoading(false);
     }
@@ -135,11 +172,20 @@ export default function StaffLogin() {
             </button>
           </form>
 
-          {/* Đăng nhập nhanh kiểm thử cho 6 bộ phận */}
-          <div className="pt-4 border-t border-slate-700/60">
-            <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-3">
-              ⚡ Truy cập nhanh theo bộ phận (Demo Môi Trường):
-            </span>
+          {/* Đăng nhập nhanh kiểm thử cho Quản trị viên & 6 bộ phận */}
+          <div className="pt-4 border-t border-slate-700/60 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                ⚡ Truy cập nhanh (Tài khoản Seed):
+              </span>
+              <button
+                type="button"
+                onClick={handleQuickAdminLogin}
+                className="text-[11px] font-bold text-amber-400 hover:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg border border-amber-500/30 transition cursor-pointer flex items-center gap-1"
+              >
+                <span>👑 Đăng nhập Admin</span>
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               {STAFF_PRESETS.map((p) => (
                 <button

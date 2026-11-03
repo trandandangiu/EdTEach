@@ -10,6 +10,8 @@ router.post('/login', authController.login);
 router.post('/register/parent', authController.registerParent);
 router.post('/register/applicant', authController.registerApplicant);
 router.post('/student-code', authController.loginWithStudentCode);
+router.post('/send-email-otp', authController.sendEmailOtp);
+router.post('/verify-email-otp', authController.verifyEmailOtp);
 
 // Authenticated auth
 router.get('/me', authenticate, authController.me);

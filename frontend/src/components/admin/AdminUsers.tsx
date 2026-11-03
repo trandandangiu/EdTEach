@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Users, Search, Plus, ShieldCheck, UserCheck, Edit3, Trash2, Key,
-  Lock, Unlock, AlertCircle, CheckCircle2, Loader2, X, RefreshCw, Building2
+  Lock, Unlock, AlertCircle, CheckCircle2, Loader2, X, RefreshCw, Building2, ExternalLink
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -44,7 +44,7 @@ interface UserRecord {
 }
 
 export default function AdminUsers() {
-  const { user: currentUser } = useAuth();
+  const { currentUser } = useAuth();
   const isAdmin = currentUser?.actorType === 'ADMIN' || (currentUser?.roles && currentUser.roles.includes('ADMIN'));
   const staffDeptCode = currentUser?.departmentCode || '';
   const availableRoles = (!isAdmin && staffDeptCode && DEPT_ROLE_MAP[staffDeptCode])
@@ -398,6 +398,17 @@ export default function AdminUsers() {
                       <td className="p-4 text-right">
                         {canManage ? (
                           <div className="inline-flex items-center gap-1.5">
+                            {roleCodes.includes('TUTOR') && (
+                              <a
+                                href={`/tutors/${u.id}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="Xem và điều phối hồ sơ gia sư trên sàn"
+                                className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-700 transition inline-flex items-center"
+                              >
+                                <ExternalLink size={15} />
+                              </a>
+                            )}
                             <button
                               onClick={() => openEditModal(u)}
                               title="Sửa thông tin"

@@ -35,24 +35,42 @@ import { errorHandler, notFound } from './middlewares/error.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Cấu hình CORS linh hoạt từ .env
-const envOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+// Cấu hình CORS linh hoạt từ .env và hỗ trợ mọi môi trường dev/local
+const envOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({
   origin: (origin, callback) => {
+    // 1. Cho phép request không có origin (curl, Postman, server-to-server, mobile native)
     if (!origin) return callback(null, true);
-    if (
-      envOrigins.includes(origin) ||
-      origin.startsWith('http://localhost') ||
-      origin.startsWith('https://localhost') ||
-      origin.startsWith('http://127.0.0.1')
-    ) {
+
+    // 2. Trong môi trường Development hoặc khi có '*' trong .env: luôn cho phép
+    if (isDev || envOrigins.includes('*')) {
       return callback(null, true);
     }
-    console.warn('⚠️ CORS blocked:', origin);
-    callback(new Error('Not allowed by CORS'));
+
+    // 3. Cho phép localhost, 127.0.0.1 và mọi dải IP mạng nội bộ (LAN / Wi-Fi) ở bất kỳ port nào
+    const isLocalOrPrivate = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin);
+    if (isLocalOrPrivate) {
+      return callback(null, true);
+    }
+
+    // 4. Kiểm tra danh sách whitelist cấu hình trong .env
+    if (envOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn('⚠️ CORS blocked origin:', origin);
+    return callback(null, false);
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 app.use(express.json());

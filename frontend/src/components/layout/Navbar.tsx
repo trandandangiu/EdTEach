@@ -29,7 +29,9 @@ const getStaffDashboardPath = (roles: string[], deptCode?: string) => {
   if (roles.includes('STAFF_MATCHING') || deptCode === 'DEPT_MATCHING') return '/staff/matching';
   if (roles.includes('STAFF_CS') || deptCode === 'DEPT_CS') return '/staff/care';
   if (roles.includes('STAFF_TUTOR_CARE') || deptCode === 'DEPT_TUTOR_CARE') return '/staff/tutor-care';
-  return '/staff/login';
+  if (roles.includes('STAFF_ACADEMIC') || deptCode === 'DEPT_ACADEMIC') return '/staff/academic';
+  if (roles.includes('STAFF_FORUM') || deptCode === 'DEPT_FORUM') return '/staff/forum';
+  return '/staff/recruit';
 };
 
 export const Navbar: React.FC = () => {
@@ -321,8 +323,15 @@ export const Navbar: React.FC = () => {
                   Đăng nhập
                 </Link>
                 <Link
+                  to="/apply"
+                  className="px-3.5 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition flex items-center gap-1.5 shadow-xs"
+                >
+                  <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>Đăng ký làm Gia sư</span>
+                </Link>
+                <Link
                   to="/register/parent"
-                  className="px-4 py-2 text-xs font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow-xs transition"
+                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow-xs transition"
                 >
                   Phụ huynh Đăng ký
                 </Link>
