@@ -48,11 +48,10 @@ export const authService = {
       };
     }
 
-    let match = await bcrypt.compare(password, user.passwordHash);
-    if (!match && (password === 'password123' || password === 'Password@2026') && process.env.NODE_ENV !== 'production') {
-      match = true;
-    }
+    const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) {
+      // Delay 300ms chống timing attack + brute force
+      await new Promise(r => setTimeout(r, 300));
       throw { status: 401, message: 'Tên đăng nhập hoặc mật khẩu không chính xác' };
     }
 

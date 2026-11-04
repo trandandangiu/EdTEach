@@ -153,15 +153,27 @@ export const classRequestsController = {
       const createdOffers = await prisma.$transaction(async (tx) => {
         const offers = [];
         for (const tutorId of tutorIds) {
-          const offer = await tx.classOffer.create({
-            data: {
+          const offer = await tx.classOffer.upsert({
+            where: {
+              requestId_tutorId: {
+                requestId: id,
+                tutorId,
+              },
+            },
+            create: {
               requestId: id,
               tutorId,
               source: 'STAFF_OFFER',
               status: 'PENDING',
-              proposedFee,
-              note,
+              proposedPay: proposedFee ? proposedFee : undefined,
+              message: note || undefined,
               expiresAt,
+            },
+            update: {
+              expiresAt, // Gia hạn nếu đã có
+              status: 'PENDING',
+              proposedPay: proposedFee ? proposedFee : undefined,
+              message: note || undefined,
             },
           });
           offers.push(offer);
@@ -207,6 +219,19 @@ export const classRequestsController = {
       });
 
       const result = await prisma.$transaction(async (tx) => {
+        // Thêm SELECT FOR UPDATE để lock row class_request
+        await tx.$executeRawUnsafe(
+          `SELECT id FROM class_requests WHERE id = $1 FOR UPDATE`,
+          id
+        );
+        const currentRequest = await tx.classRequest.findUnique({
+          where: { id },
+          select: { status: true },
+        });
+        if (currentRequest?.status === 'MATCHED') {
+          throw { status: 409, message: 'Yêu cầu này đã được ghép lớp thành công trước đó' };
+        }
+
         // Cập nhật offer được chọn
         await tx.classOffer.update({
           where: { id: offerId },

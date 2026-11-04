@@ -50,12 +50,15 @@ export const matchingService = {
       const matchReasons = [];
 
       // 1. Khớp môn & khối lớp (Tối đa 40đ)
+      const reqSubjLevelId = Number(request.subjectLevelId);
+      const reqSubjId = request.subjectLevel?.subjectId ? Number(request.subjectLevel.subjectId) : null;
+
       const exactSubjectLevel = tutor.subjects.some(
-        (s) => s.subjectLevelId === request.subjectLevelId
+        (s) => Number(s.subjectLevelId) === reqSubjLevelId
       );
-      const sameSubject = tutor.subjects.some(
-        (s) => s.subjectLevel?.subjectId === request.subjectLevel?.subjectId
-      );
+      const sameSubject = reqSubjId ? tutor.subjects.some(
+        (s) => Number(s.subjectLevel?.subjectId) === reqSubjId
+      ) : false;
 
       if (exactSubjectLevel) {
         score += 40;

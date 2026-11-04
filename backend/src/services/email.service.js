@@ -121,13 +121,15 @@ export const emailService = {
     console.log(`📡 Kênh gửi: ${sentViaSmtp ? 'Gmail/SMTP Transporter' : 'Console Local Development'}`);
     console.log('================================================================');
 
-    return {
+    const response = {
       success: true,
       message: `Mã xác nhận 6 số đã được gửi về Gmail "${cleanEmail}". Vui lòng kiểm tra hộp thư!`,
       sentViaSmtp,
-      // debugOtp để dev / test chạy local dễ dàng thao tác ngay lập tức
-      debugOtp: otp,
     };
+    if (process.env.NODE_ENV === 'development') {
+      response.debugOtp = otp;
+    }
+    return response;
   },
 
   /**

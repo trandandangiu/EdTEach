@@ -8,17 +8,17 @@ import { GraduationCap, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 const getRedirectPath = (roles: string[]): string => {
   if (!roles || roles.length === 0) return '/';
   if (roles.includes('ADMIN')) return '/admin';
-  if (roles.includes('STAFF_RECRUIT')) return '/staff/recruit';
-  if (roles.includes('STAFF_MATCHING')) return '/staff/matching';
-  if (roles.includes('STAFF_CS')) return '/staff/care';
-  if (roles.includes('STAFF_TUTOR_CARE')) return '/staff/tutor-care';
-  if (roles.includes('STAFF_ACADEMIC')) return '/staff/academic';
-  if (roles.includes('STAFF_FORUM')) return '/staff/forum';
-  if (roles.some((r) => r.startsWith('STAFF_'))) return '/staff/recruit';
+  // [FUTURE] if (roles.includes('STAFF_RECRUIT')) return '/staff/recruit';
+  // [FUTURE] if (roles.includes('STAFF_MATCHING')) return '/staff/matching';
+  // [FUTURE] if (roles.includes('STAFF_CS')) return '/staff/care';
+  // [FUTURE] if (roles.includes('STAFF_TUTOR_CARE')) return '/staff/tutor-care';
+  // [FUTURE] if (roles.includes('STAFF_ACADEMIC')) return '/staff/academic';
+  // [FUTURE] if (roles.includes('STAFF_FORUM')) return '/staff/forum';
+  // [FUTURE] if (roles.some((r) => r.startsWith('STAFF_'))) return '/staff/recruit';
   if (roles.includes('PARENT')) return '/parent/dashboard';
   if (roles.includes('TUTOR')) return '/tutor/dashboard';
   if (roles.includes('APPLICANT')) return '/apply';
-  if (roles.includes('STUDENT')) return '/kids';
+  // [FUTURE] if (roles.includes('STUDENT')) return '/kids';
   return '/';
 };
 

@@ -20,24 +20,24 @@ const PageLoader: React.FC = () => (
 const PublicHomePage = lazy(() => import('../features/public/PublicHomePage'));
 const PublicTutorSearchPage = lazy(() => import('../features/public/PublicTutorSearchPage'));
 const PublicTutorDetailPage = lazy(() => import('../features/public/PublicTutorDetailPage'));
-const ForumPage = lazy(() => import('../features/forum/ForumPage'));
-const ForumDetailPage = lazy(() => import('../features/forum/ForumDetailPage'));
+// [FUTURE] const ForumPage = lazy(() => import('../features/forum/ForumPage'));
+// [FUTURE] const ForumDetailPage = lazy(() => import('../features/forum/ForumDetailPage'));
 const LoginPage = lazy(() => import('../pages/Login'));
-const StaffLogin = lazy(() => import('../pages/StaffLogin'));
-const StaffLayout = lazy(() => import('../pages/StaffLayout'));
+// [FUTURE] const StaffLogin = lazy(() => import('../pages/StaffLogin'));
+// [FUTURE] const StaffLayout = lazy(() => import('../pages/StaffLayout'));
 const ParentRegisterPage = lazy(() => import('../features/public/ParentRegisterPage'));
 
 // 2. Tuyển dụng & Gia sư (Tutor Portal)
 const TutorApplyPage = lazy(() => import('../features/apply/TutorApplyPage'));
-const TutorTestsPage = lazy(() => import('../features/apply/TutorTestsPage'));
-const TutorExamRoomPage = lazy(() => import('../features/apply/TutorExamRoomPage'));
+// [FUTURE] const TutorTestsPage = lazy(() => import('../features/apply/TutorTestsPage'));
+// [FUTURE] const TutorExamRoomPage = lazy(() => import('../features/apply/TutorExamRoomPage'));
 const TutorDashboard = lazy(() => import('../features/tutor/TutorDashboard'));
-const TutorOpenBoardPage = lazy(() => import('../features/tutor/TutorOpenBoardPage'));
+// [FUTURE] const TutorOpenBoardPage = lazy(() => import('../features/tutor/TutorOpenBoardPage'));
 const TutorOffersInboxPage = lazy(() => import('../features/tutor/TutorOffersInboxPage'));
 const TutorClassesPage = lazy(() => import('../features/tutor/TutorClassesPage'));
 const TutorClassDetailPage = lazy(() => import('../features/tutor/TutorClassDetailPage'));
 const LessonReportSubmitPage = lazy(() => import('../features/tutor/LessonReportSubmitPage'));
-const TutorTasksManagerPage = lazy(() => import('../features/tutor/TutorTasksManagerPage'));
+// [FUTURE] const TutorTasksManagerPage = lazy(() => import('../features/tutor/TutorTasksManagerPage'));
 
 // 3. Phân hệ Phụ huynh (Parent Portal)
 const ParentDashboard = lazy(() => import('../features/parent/ParentDashboard'));
@@ -49,11 +49,11 @@ const LessonReportParentDetailPage = lazy(() => import('../features/parent/Lesso
 const ParentSchedulePage = lazy(() => import('../features/parent/ParentSchedulePage'));
 
 // 4. Góc học sinh (Kids Portal - Lớp 1-5)
-const KidsTodayTasksPage = lazy(() => import('../features/kids/KidsTodayTasksPage'));
-const KidsSubmitTaskPage = lazy(() => import('../features/kids/KidsSubmitTaskPage'));
-const KidsGamesHubPage = lazy(() => import('../features/kids/KidsGamesHubPage'));
-const KidsGamePlayPage = lazy(() => import('../features/kids/KidsGamePlayPage'));
-const KidsTrophyPage = lazy(() => import('../features/kids/KidsTrophyPage'));
+// [FUTURE] const KidsTodayTasksPage = lazy(() => import('../features/kids/KidsTodayTasksPage'));
+// [FUTURE] const KidsSubmitTaskPage = lazy(() => import('../features/kids/KidsSubmitTaskPage'));
+// [FUTURE] const KidsGamesHubPage = lazy(() => import('../features/kids/KidsGamesHubPage'));
+// [FUTURE] const KidsGamePlayPage = lazy(() => import('../features/kids/KidsGamePlayPage'));
+// [FUTURE] const KidsTrophyPage = lazy(() => import('../features/kids/KidsTrophyPage'));
 
 // 5. Trung tâm Điều hành & Quản trị (Admin Portal)
 const AdminDashboard = lazy(() => import('../pages/AdminDashboard'));
@@ -63,13 +63,13 @@ const AdminGradeAttemptPage = lazy(() => import('../features/admin/recruit/Admin
 const AdminMatchingQueue = lazy(() => import('../components/admin/edtech/AdminClassRequests'));
 const AdminClassesManager = lazy(() => import('../features/admin/matching/AdminClassesManager'));
 const AdminCareCases = lazy(() => import('../components/admin/edtech/AdminCareCases'));
-const AdminAcademicManager = lazy(() => import('../features/admin/academic/AdminAcademicManager'));
-const AdminForumMod = lazy(() => import('../features/admin/forum/AdminForumMod'));
+// [FUTURE] const AdminAcademicManager = lazy(() => import('../features/admin/academic/AdminAcademicManager'));
+// [FUTURE] const AdminForumMod = lazy(() => import('../features/admin/forum/AdminForumMod'));
 const AdminUsers = lazy(() => import('../components/admin/AdminUsers'));
-const AdminDepartments = lazy(() => import('../components/admin/AdminDepartments'));
-const DatabaseBrowser = lazy(() => import('../components/admin/DatabaseBrowser'));
-const AdminAuditLogs = lazy(() => import('../components/admin/AdminAuditLogs'));
-const AdminSessions = lazy(() => import('../components/admin/AdminSessions'));
+// [FUTURE] const AdminDepartments = lazy(() => import('../components/admin/AdminDepartments'));
+// [FUTURE] const DatabaseBrowser = lazy(() => import('../components/admin/DatabaseBrowser'));
+// [FUTURE] const AdminAuditLogs = lazy(() => import('../components/admin/AdminAuditLogs'));
+// [FUTURE] const AdminSessions = lazy(() => import('../components/admin/AdminSessions'));
 
 // ============================================================================
 // HỢP PHẦN BẢO VỆ PHÂN QUYỀN (PROTECTED ROUTE HỖ TRỢ RBAC VÀ TOKEN HỌC SINH)
@@ -180,24 +180,26 @@ export const AppRoutes: React.FC = () => {
         <Route path="/tutors" element={<PublicTutorSearchPage />} />
         <Route path="/tutors/:id" element={<PublicTutorDetailPage />} />
 
-        {/* Diễn đàn cộng đồng */}
+        {/* [FUTURE] Diễn đàn cộng đồng
         <Route path="/forum" element={<ForumPage />} />
         <Route path="/forum/:id" element={<ForumDetailPage />} />
+        */}
 
         {/* Đăng ký & Đăng nhập */}
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/staff/login" element={<StaffLogin />} />
+        {/* [FUTURE] <Route path="/staff/login" element={<StaffLogin />} /> */}
         <Route path="/register/parent" element={<ParentRegisterPage />} />
         <Route path="/register/tutor" element={<Navigate to="/apply" replace />} />
         <Route path="/apply" element={<TutorApplyPage />} />
 
-        {/* ===================================================================
+        {/* [FUTURE] ===================================================================
             2. PHÂN HỆ TUYỂN DỤNG & PHÒNG THI ONLINE CHO GIA SƯ
-        =================================================================== */}
+        ===================================================================
         <Route element={<ProtectedRoute allowedRoles={['APPLICANT', 'TUTOR']} />}>
           <Route path="/apply/tests" element={<TutorTestsPage />} />
           <Route path="/apply/tests/:attemptId" element={<TutorExamRoomPage />} />
         </Route>
+        */}
 
         {/* ===================================================================
             3. BÀN LÀM VIỆC DÀNH CHO GIA SƯ CHÍNH THỨC (TUTOR PORTAL)
@@ -206,12 +208,12 @@ export const AppRoutes: React.FC = () => {
           <Route path="/tutor">
             <Route index element={<Navigate to="/tutor/dashboard" replace />} />
             <Route path="dashboard" element={<TutorDashboard />} />
-            <Route path="board" element={<TutorOpenBoardPage />} />
+            {/* [FUTURE] <Route path="board" element={<TutorOpenBoardPage />} /> */}
             <Route path="offers" element={<TutorOffersInboxPage />} />
             <Route path="classes" element={<TutorClassesPage />} />
             <Route path="classes/:id" element={<TutorClassDetailPage />} />
             <Route path="lessons/:lessonId/report" element={<LessonReportSubmitPage />} />
-            <Route path="tasks" element={<TutorTasksManagerPage />} />
+            {/* [FUTURE] <Route path="tasks" element={<TutorTasksManagerPage />} /> */}
           </Route>
         </Route>
 
@@ -231,9 +233,9 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* ===================================================================
+        {/* [FUTURE] ===================================================================
             5. GÓC HỌC TẬP CỦA BÉ (KIDS PORTAL - PHIÊN BẢN HỌC SINH AN TOÀN)
-        =================================================================== */}
+        ===================================================================
         <Route element={<ProtectedRoute requireKidsMode={true} allowedRoles={['STUDENT']} />}>
           <Route path="/kids">
             <Route index element={<KidsTodayTasksPage />} />
@@ -243,6 +245,7 @@ export const AppRoutes: React.FC = () => {
             <Route path="trophy" element={<KidsTrophyPage />} />
           </Route>
         </Route>
+        */}
 
         {/* ===================================================================
             6. TRUNG TÂM ĐIỀU HÀNH & QUẢN TRỊ VIÊN (ADMIN / STAFF PORTAL)
@@ -276,30 +279,30 @@ export const AppRoutes: React.FC = () => {
             {/* Phân hệ CSKH (Xử lý trễ 24-48h, Gọi điện xác nhận thay) */}
             <Route path="care" element={<AdminCareCases />} />
 
-            {/* Phân hệ Học thuật & Ngân hàng đề thi */}
+            {/* [FUTURE] Phân hệ Học thuật & Ngân hàng đề thi
             <Route path="academic" element={<AdminAcademicManager />} />
+            */}
 
-            {/* Kiểm duyệt diễn đàn */}
+            {/* [FUTURE] Kiểm duyệt diễn đàn
             <Route path="forum-mod" element={<AdminForumMod />} />
+            */}
 
             {/* Quản trị hệ thống, RBAC & CSDL */}
             <Route path="system">
               <Route path="users" element={<AdminUsers />} />
-              <Route path="departments" element={<AdminDepartments />} />
-              <Route path="database" element={<DatabaseBrowser />} />
-              <Route path="audit-logs" element={<AdminAuditLogs />} />
-              <Route path="sessions" element={<AdminSessions />} />
+              {/* [FUTURE] <Route path="departments" element={<AdminDepartments />} /> */}
+              {/* [FUTURE] <Route path="database" element={<DatabaseBrowser />} /> */}
+              {/* [FUTURE] <Route path="audit-logs" element={<AdminAuditLogs />} /> */}
+              {/* [FUTURE] <Route path="sessions" element={<AdminSessions />} /> */}
             </Route>
           </Route>
         </Route>
 
-        {/* ===================================================================
+        {/* [FUTURE] ===================================================================
             7. CÁC PHÂN HỆ CHUYÊN TRÁCH 6 BỘ PHẬN NHÂN SỰ (STAFF PORTALS)
-        =================================================================== */}
-        {/* Điều hướng chung /staff */}
+        ===================================================================
         <Route path="/staff" element={<Navigate to="/staff/recruit" replace />} />
 
-        {/* 7.1. Tuyển dụng & Thẩm định */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_RECRUIT']} />}>
           <Route path="/staff/recruit" element={<StaffLayout />}>
             <Route index element={<AdminRecruitKanban />} />
@@ -310,7 +313,6 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* 7.2. Điều phối & Ghép lớp */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_MATCHING']} />}>
           <Route path="/staff/matching" element={<StaffLayout />}>
             <Route index element={<AdminMatchingQueue />} />
@@ -320,7 +322,6 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* 7.3. CSKH (Phụ huynh) */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_CS']} />}>
           <Route path="/staff/care" element={<StaffLayout />}>
             <Route index element={<AdminCareCases />} />
@@ -330,7 +331,6 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* 7.4. Chăm sóc Gia sư */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_TUTOR_CARE']} />}>
           <Route path="/staff/tutor-care" element={<StaffLayout />}>
             <Route index element={<AdminCareCases />} />
@@ -340,7 +340,6 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* 7.5. Giám sát Học thuật */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_ACADEMIC']} />}>
           <Route path="/staff/academic" element={<StaffLayout />}>
             <Route index element={<AdminAcademicManager />} />
@@ -350,7 +349,6 @@ export const AppRoutes: React.FC = () => {
           </Route>
         </Route>
 
-        {/* 7.6. Ban Kiểm duyệt Diễn đàn */}
         <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'STAFF_FORUM']} />}>
           <Route path="/staff/forum" element={<StaffLayout />}>
             <Route index element={<AdminForumMod />} />
@@ -359,6 +357,7 @@ export const AppRoutes: React.FC = () => {
             <Route path="users" element={<AdminUsers />} />
           </Route>
         </Route>
+        */}
 
         {/* ===================================================================
             FALLBACK: BẤT KỲ ĐƯỜNG DẪN NÀO KHÔNG KHỚP → ĐẨY VỀ TRANG CHỦ

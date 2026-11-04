@@ -60,8 +60,14 @@ const ALLOWED_TYPES = [
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 }, // 10 MB, max 5 files
   fileFilter: (req, file, cb) => {
+    // Chống double extension attack: file.php.jpg, shell.exe.pdf, etc.
+    const dangerousDoubleExt = /\.(php|exe|sh|bat|cmd|js|jsp|asp|aspx|py|pl|rb|com)\./i;
+    if (dangerousDoubleExt.test(file.originalname)) {
+      return cb(new Error('Tên file không hợp lệ (phát hiện phần mở rộng kép)'), false);
+    }
+
     if (ALLOWED_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {

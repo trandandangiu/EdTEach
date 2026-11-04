@@ -8,13 +8,13 @@ import { swaggerSpec } from './config/swagger.js';
 // Core routes kế thừa từ VKS-QLCV
 import authRoutes from './routes/auth.routes.js';
 import usersRoutes from './routes/users.routes.js';
-import departmentsRoutes from './routes/departments.routes.js';
-import rolesRoutes from './routes/roles.routes.js';
-import permissionsRoutes from './routes/permissions.routes.js';
+// [FUTURE] import departmentsRoutes from './routes/departments.routes.js';
+// [FUTURE] import rolesRoutes from './routes/roles.routes.js';
+// [FUTURE] import permissionsRoutes from './routes/permissions.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import notificationsRoutes from './routes/notifications.routes.js';
 import sseRoutes from './routes/sse.routes.js';
-import pushRoutes from './routes/push.routes.js';
+// [FUTURE] import pushRoutes from './routes/push.routes.js';
 import attachmentsRoutes from './routes/attachments.routes.js';
 
 // EdTech routes mới
@@ -23,10 +23,10 @@ import familiesRoutes from './routes/families.routes.js';
 import classesRoutes from './routes/classes.routes.js';
 import lessonReportsRoutes from './routes/lessonReports.routes.js';
 import careRoutes from './routes/care.routes.js';
-import learningRoutes from './routes/learning.routes.js';
+// [FUTURE] import learningRoutes from './routes/learning.routes.js';
 import tutorsRoutes from './routes/tutors.routes.js';
 import classRequestsRoutes from './routes/classRequests.routes.js';
-import forumRoutes from './routes/forum.routes.js';
+// [FUTURE] import forumRoutes from './routes/forum.routes.js';
 import assessmentRoutes from './routes/assessment.routes.js';
 import { startCronJobs } from './cron/index.js';
 
@@ -105,15 +105,15 @@ app.get('/api/health', (req, res) => {
 // Phân hệ Core & Quản trị
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
-app.use('/api/departments', departmentsRoutes);
-app.use('/api/roles', rolesRoutes);
-app.use('/api/permissions', permissionsRoutes);
+// [FUTURE] app.use('/api/departments', departmentsRoutes);
+// [FUTURE] app.use('/api/roles', rolesRoutes);
+// [FUTURE] app.use('/api/permissions', permissionsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Phân hệ Realtime & Thông báo
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/sse', sseRoutes);
-app.use('/api/push', pushRoutes);
+// [FUTURE] app.use('/api/push', pushRoutes);
 app.use('/api', attachmentsRoutes);
 
 // Phân hệ Giáo dục EdTech
@@ -122,11 +122,11 @@ app.use('/api/students', familiesRoutes);
 app.use('/api/classes', classesRoutes);
 app.use('/api/lesson-reports', lessonReportsRoutes);
 app.use('/api/care-cases', careRoutes);
-app.use('/api/kids', learningRoutes);
-app.use('/api/learning', learningRoutes);
+// [FUTURE] app.use('/api/kids', learningRoutes);
+// [FUTURE] app.use('/api/learning', learningRoutes);
 app.use('/api/tutors', tutorsRoutes);
 app.use('/api/class-requests', classRequestsRoutes);
-app.use('/api/forum', forumRoutes);
+// [FUTURE] app.use('/api/forum', forumRoutes);
 app.use('/api/assessments', assessmentRoutes);
 
 // Error handlers

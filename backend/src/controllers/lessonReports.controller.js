@@ -42,6 +42,14 @@ export async function submitLessonReport(req, res, next) {
       return res.status(403).json({ success: false, message: 'Bạn không phải gia sư phụ trách buổi học này' });
     }
 
+    const isStudentInClass = lesson.class.students.some(s => s.studentId === studentId);
+    if (!isStudentInClass) {
+      return res.status(400).json({
+        success: false,
+        error: 'Học sinh không thuộc lớp học này',
+      });
+    }
+
     // Tạo hoặc cập nhật LessonReport
     const report = await prisma.$transaction(async (tx) => {
       const savedReport = await tx.lessonReport.upsert({
