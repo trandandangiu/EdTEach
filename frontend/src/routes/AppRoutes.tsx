@@ -30,8 +30,8 @@ const ParentRegisterPage = lazy(() => import('../features/public/ParentRegisterP
 // 2. Tuyển dụng & Gia sư (Tutor Portal)
 const TutorLayout = lazy(() => import('../features/tutor/TutorLayout'));
 const TutorApplyPage = lazy(() => import('../features/apply/TutorApplyPage'));
-// [FUTURE] const TutorTestsPage = lazy(() => import('../features/apply/TutorTestsPage'));
-// [FUTURE] const TutorExamRoomPage = lazy(() => import('../features/apply/TutorExamRoomPage'));
+const TutorTestsPage = lazy(() => import('../features/apply/TutorTestsPage'));
+const TutorExamRoomPage = lazy(() => import('../features/apply/TutorExamRoomPage'));
 const TutorDashboard = lazy(() => import('../features/tutor/TutorDashboard'));
 // [FUTURE] const TutorOpenBoardPage = lazy(() => import('../features/tutor/TutorOpenBoardPage'));
 const TutorOffersInboxPage = lazy(() => import('../features/tutor/TutorOffersInboxPage'));
@@ -194,14 +194,11 @@ export const AppRoutes: React.FC = () => {
         <Route path="/register/tutor" element={<Navigate to="/apply" replace />} />
         <Route path="/apply" element={<TutorApplyPage />} />
 
-        {/* [FUTURE] ===================================================================
+        {/* ===================================================================
             2. PHÂN HỆ TUYỂN DỤNG & PHÒNG THI ONLINE CHO GIA SƯ
-        ===================================================================
-        <Route element={<ProtectedRoute allowedRoles={['APPLICANT', 'TUTOR']} />}>
-          <Route path="/apply/tests" element={<TutorTestsPage />} />
-          <Route path="/apply/tests/:attemptId" element={<TutorExamRoomPage />} />
-        </Route>
-        */}
+        =================================================================== */}
+        <Route path="/apply/tests" element={<TutorTestsPage />} />
+        <Route path="/apply/tests/:attemptId" element={<TutorExamRoomPage />} />
 
         {/* ===================================================================
             3. BÀN LÀM VIỆC DÀNH CHO GIA SƯ CHÍNH THỨC (TUTOR PORTAL)
