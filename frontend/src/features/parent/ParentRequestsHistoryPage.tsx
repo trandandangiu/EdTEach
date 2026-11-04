@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { api } from '../../services/api';
 import { ClassRequest } from '../../types/edtech';
 import { Plus, Clock, CheckCircle2, ArrowRight, MapPin } from 'lucide-react';
@@ -25,35 +23,28 @@ export default function ParentRequestsHistoryPage() {
     loadRequests();
   }, []);
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-emerald-300">Phụ Huynh Quản Lý</span>
-              <h1 className="text-2xl font-black text-white mt-1">
-                Lịch Sử Yêu Cầu Tìm Gia Sư ({requests.length})
-              </h1>
-              <p className="text-xs text-emerald-200 mt-1">
-                Theo dõi trạng thái tìm kiếm, tiếp nhận ứng tuyển và xác nhận gia sư do trung tâm điều phối.
-              </p>
-            </div>
-
-            <Link
-              to="/parent/requests/new"
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Tạo yêu cầu mới</span>
-            </Link>
-          </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-semibold text-emerald-700">VietTutor · Phụ Huynh Quản Lý</span>
+          <h1 className="text-2xl font-black text-slate-900 mt-1">
+            Lịch Sử Yêu Cầu Tìm Gia Sư ({requests.length})
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Theo dõi trạng thái tìm kiếm, tiếp nhận ứng tuyển và xác nhận gia sư do trung tâm điều phối.
+          </p>
         </div>
+
+        <Link
+          to="/parent/requests/new"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Tạo yêu cầu mới</span>
+        </Link>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           {requests.map((req) => (
             <div
               key={req.id}
@@ -107,9 +98,6 @@ export default function ParentRequestsHistoryPage() {
             </div>
           ))}
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }

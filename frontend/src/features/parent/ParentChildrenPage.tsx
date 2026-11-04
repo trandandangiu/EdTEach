@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import { Plus, Award, Star, Gamepad2, BookOpen, Clock, CheckCircle2 } from 'lucide-react';
 
@@ -48,34 +46,28 @@ export default function ParentChildrenPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-emerald-300">Phụ Huynh Quản Lý</span>
-              <h1 className="text-2xl font-black text-white mt-1">
-                Hồ Sơ Học Tập Của Con
-              </h1>
-              <p className="text-xs text-emerald-200 mt-1">
-                Theo dõi điểm thưởng sao, chuỗi ngày học liên tục và chuyển nhanh sang giao diện an toàn cho bé.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setModalOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>+ Thêm hồ sơ bé thứ 2</span>
-            </button>
-          </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-semibold text-emerald-700">VietTutor · Phụ Huynh Quản Lý</span>
+          <h1 className="text-2xl font-black text-slate-900 mt-1">
+            Hồ Sơ Học Tập Của Con
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Theo dõi tiến trình học tập, thông tin khối lớp và trường học của các con.
+          </p>
         </div>
+
+        <button
+          onClick={() => setModalOpen(true)}
+          className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition flex items-center gap-1.5 self-start sm:self-auto"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Thêm hồ sơ con</span>
+        </button>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
+      <div className="w-full space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {children.map((child) => (
             <div
@@ -196,8 +188,6 @@ export default function ParentChildrenPage() {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
 }

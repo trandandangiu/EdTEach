@@ -1,6 +1,4 @@
 import React from 'react';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { Calendar, Clock, MapPin, User, CheckCircle2 } from 'lucide-react';
 
 export default function ParentSchedulePage() {
@@ -35,23 +33,18 @@ export default function ParentSchedulePage() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <span className="text-xs font-semibold text-emerald-300">Phụ Huynh Quản Lý</span>
-          <h1 className="text-2xl font-black text-white mt-1">
-            Thời Khóa Biểu & Lịch Học Của Con
-          </h1>
-          <p className="text-xs text-emerald-200 mt-1">
-            Lịch học cập nhật tự động đồng bộ giữa gia sư và gia đình.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+        <span className="text-xs font-semibold text-emerald-700">VietTutor · Thời Khóa Biểu</span>
+        <h1 className="text-2xl font-black text-slate-900 mt-1">
+          Thời Khóa Biểu & Lịch Học Của Con
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Lịch học cập nhật tự động đồng bộ giữa gia sư và gia đình.
+        </p>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           {scheduleItems.map((item, idx) => (
             <div
               key={idx}
@@ -84,9 +77,6 @@ export default function ParentSchedulePage() {
             </div>
           ))}
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }

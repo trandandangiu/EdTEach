@@ -28,6 +28,7 @@ const LoginPage = lazy(() => import('../pages/Login'));
 const ParentRegisterPage = lazy(() => import('../features/public/ParentRegisterPage'));
 
 // 2. Tuyển dụng & Gia sư (Tutor Portal)
+const TutorLayout = lazy(() => import('../features/tutor/TutorLayout'));
 const TutorApplyPage = lazy(() => import('../features/apply/TutorApplyPage'));
 // [FUTURE] const TutorTestsPage = lazy(() => import('../features/apply/TutorTestsPage'));
 // [FUTURE] const TutorExamRoomPage = lazy(() => import('../features/apply/TutorExamRoomPage'));
@@ -40,6 +41,7 @@ const LessonReportSubmitPage = lazy(() => import('../features/tutor/LessonReport
 // [FUTURE] const TutorTasksManagerPage = lazy(() => import('../features/tutor/TutorTasksManagerPage'));
 
 // 3. Phân hệ Phụ huynh (Parent Portal)
+const ParentLayout = lazy(() => import('../features/parent/ParentLayout'));
 const ParentDashboard = lazy(() => import('../features/parent/ParentDashboard'));
 const ParentChildrenPage = lazy(() => import('../features/parent/ParentChildrenPage'));
 const CreateClassRequestPage = lazy(() => import('../features/parent/CreateClassRequestPage'));
@@ -205,7 +207,7 @@ export const AppRoutes: React.FC = () => {
             3. BÀN LÀM VIỆC DÀNH CHO GIA SƯ CHÍNH THỨC (TUTOR PORTAL)
         =================================================================== */}
         <Route element={<ProtectedRoute allowedRoles={['TUTOR']} />}>
-          <Route path="/tutor">
+          <Route path="/tutor" element={<TutorLayout />}>
             <Route index element={<Navigate to="/tutor/dashboard" replace />} />
             <Route path="dashboard" element={<TutorDashboard />} />
             {/* [FUTURE] <Route path="board" element={<TutorOpenBoardPage />} /> */}
@@ -221,7 +223,7 @@ export const AppRoutes: React.FC = () => {
             4. PHÂN HỆ DÀNH CHO PHỤ HUYNH (PARENT PORTAL)
         =================================================================== */}
         <Route element={<ProtectedRoute allowedRoles={['PARENT']} />}>
-          <Route path="/parent">
+          <Route path="/parent" element={<ParentLayout />}>
             <Route index element={<Navigate to="/parent/dashboard" replace />} />
             <Route path="dashboard" element={<ParentDashboard />} />
             <Route path="children" element={<ParentChildrenPage />} />

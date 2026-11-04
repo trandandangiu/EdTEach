@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { Sparkles, MapPin, Calendar, Clock, DollarSign, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function CreateClassRequestPage() {
@@ -27,23 +25,18 @@ export default function CreateClassRequestPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <span className="text-xs font-semibold text-emerald-300">Phụ Huynh Đăng Lớp</span>
-          <h1 className="text-2xl font-black text-white mt-1">
-            Đăng Ký Yêu Cầu Tìm Gia Sư Riêng
-          </h1>
-          <p className="text-xs text-emerald-200 mt-1">
-            Hệ thống sẽ tự động ghép đôi (Matching) và gửi danh sách 2-3 hồ sơ gia sư phù hợp nhất qua Zalo / SMS cho bạn trong vòng 2 giờ.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+        <span className="text-xs font-semibold text-emerald-700">VietTutor · Phụ Huynh Đăng Lớp</span>
+        <h1 className="text-2xl font-black text-slate-900 mt-1">
+          Đăng Ký Yêu Cầu Tìm Gia Sư Riêng
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Hệ thống sẽ tự động ghép đôi (Matching) và gửi danh sách 2-3 hồ sơ gia sư phù hợp nhất qua Zalo / SMS cho bạn trong vòng 2 giờ.
+        </p>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
-        <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xs space-y-6">
           {submitted ? (
             <div className="py-12 text-center space-y-3">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
@@ -207,9 +200,6 @@ export default function CreateClassRequestPage() {
             </form>
           )}
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }

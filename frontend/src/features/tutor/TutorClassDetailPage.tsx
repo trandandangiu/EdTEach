@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { api } from '../../services/api';
 import { TutorClass, LessonReport } from '../../types/edtech';
 import { ArrowLeft, User, Calendar, BookOpen, Clock, FileText, CheckCircle2, Star } from 'lucide-react';
@@ -52,18 +50,14 @@ export default function TutorClassDetailPage() {
 
   if (loading || !cls) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-slate-500 font-semibold">Đang tải thông tin lớp học...</p>
-        </div>
+      <div className="p-8 text-center">
+        <p className="text-xs text-slate-500 font-semibold">Đang tải thông tin lớp học...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
+    <div className="space-y-6">
 
       <div className="bg-white border-b border-slate-200 py-3">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs">
@@ -146,8 +140,6 @@ export default function TutorClassDetailPage() {
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

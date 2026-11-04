@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { api } from '../../services/api';
 import { LessonReport } from '../../types/edtech';
 import { FileText, Star, ArrowRight, CheckCircle2 } from 'lucide-react';
@@ -27,23 +25,18 @@ export default function LessonReportsParentPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <span className="text-xs font-semibold text-emerald-300">Phụ Huynh Quản Lý</span>
-          <h1 className="text-2xl font-black text-white mt-1">
-            Sổ Theo Dõi Báo Cáo Buổi Học ({reports.length} buổi)
-          </h1>
-          <p className="text-xs text-emerald-200 mt-1">
-            Gia sư cập nhật nhận xét, điểm tiếp thu kiến thức và bài tập về nhà sau mỗi buổi dạy.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+        <span className="text-xs font-semibold text-emerald-700">VietTutor · Phụ Huynh Quản Lý</span>
+        <h1 className="text-2xl font-black text-slate-900 mt-1">
+          Sổ Theo Dõi Báo Cáo Buổi Học ({reports.length} buổi)
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Gia sư cập nhật nhận xét, điểm tiếp thu kiến thức và bài tập về nhà sau mỗi buổi dạy.
+        </p>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
-        <div className="space-y-4">
+      <div className="space-y-4">
           {reports.map((report) => (
             <div
               key={report.id}
@@ -99,9 +92,6 @@ export default function LessonReportsParentPage() {
             </div>
           ))}
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }

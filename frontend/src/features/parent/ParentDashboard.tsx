@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { LessonReport, TutorClass } from '../../types/edtech';
@@ -46,65 +44,29 @@ export default function ParentDashboard() {
   const activeClass = classes[0];
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
+    <div className="space-y-6">
+      {/* Parent Welcome Header Card */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-semibold text-emerald-700">VietTutor · Khu Vực Quản Lý Học Tập</span>
+          <h1 className="text-2xl font-black text-slate-900 mt-0.5">
+            Chào mừng, {currentUser?.name || 'Phụ Huynh'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Đồng hành học tập & quản lý sổ liên lạc các con
+          </p>
+        </div>
 
-      {/* Parent Subnav */}
-      <div className="bg-emerald-950 text-white border-b border-emerald-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-emerald-300">Khu Vực Quản Lý Học Tập</span>
-              <h1 className="text-2xl font-black text-white mt-0.5">
-                Chào mừng, {currentUser?.name || 'Chị Mai Anh'}
-              </h1>
-              <p className="text-xs text-emerald-200 mt-0.5">
-                Đang theo dõi học tập cho <strong>Bé Bảo Nam (Lớp 4A)</strong>
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                to="/parent/requests/new"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Đăng Lớp Học Mới</span>
-              </Link>
-              <button
-                onClick={() => {
-                  switchUserRole('STUDENT');
-                  navigate('/kids');
-                }}
-                className="bg-emerald-800 hover:bg-emerald-700 text-emerald-100 text-xs font-bold px-4 py-2.5 rounded-xl border border-emerald-700 transition flex items-center gap-1.5"
-              >
-                <span>🧒 Bật Góc Bé Học</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Sub Navigation Links */}
-          <div className="flex items-center gap-2 mt-6 pt-3 border-t border-emerald-900/80 text-xs font-semibold overflow-x-auto">
-            <Link to="/parent/dashboard" className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white font-bold">
-              Tổng Quan
-            </Link>
-            <Link to="/parent/children" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Hồ Sơ Của Con
-            </Link>
-            <Link to="/parent/requests" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Yêu Cầu Tìm Gia Sư
-            </Link>
-            <Link to="/parent/reports" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Báo Cáo Buổi Học
-            </Link>
-            <Link to="/parent/schedule" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Lịch Học Tuần Này
-            </Link>
-          </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/parent/requests/new"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Đăng Lớp Học Mới</span>
+          </Link>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-8">
         {/* Child Progress Hero Banner */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
@@ -291,8 +253,5 @@ export default function ParentDashboard() {
           </div>
         </div>
       </div>
-
-      <Footer />
-    </div>
   );
 }

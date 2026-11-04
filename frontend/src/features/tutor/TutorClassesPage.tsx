@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { api } from '../../services/api';
 import { TutorClass } from '../../types/edtech';
 import { BookOpen, Calendar, Clock, ArrowRight, User, Phone } from 'lucide-react';
@@ -27,23 +25,18 @@ export default function TutorClassesPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-emerald-950 text-white py-8 border-b border-emerald-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <span className="text-xs font-semibold text-emerald-300">Bàn Làm Việc Gia Sư</span>
-          <h1 className="text-2xl font-black text-white mt-1">
-            Danh Sách Lớp Học Của Tôi ({classes.length} lớp)
-          </h1>
-          <p className="text-xs text-emerald-200 mt-1">
-            Quản lý giáo án, tiến độ hoàn thành số buổi và nộp báo cáo từng buổi cho phụ huynh.
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
+        <span className="text-xs font-semibold text-emerald-700">VietTutor · Quản Lý Giảng Dạy</span>
+        <h1 className="text-2xl font-black text-slate-900 mt-1">
+          Danh Sách Lớp Học Của Tôi ({classes.length} lớp)
+        </h1>
+        <p className="text-xs text-slate-500 mt-1">
+          Quản lý giáo án, theo dõi tiến độ số buổi và nộp báo cáo sổ liên lạc từng buổi cho phụ huynh.
+        </p>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {classes.map((cls) => (
             <div
               key={cls.id}
@@ -110,9 +103,6 @@ export default function TutorClassesPage() {
             </div>
           ))}
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }

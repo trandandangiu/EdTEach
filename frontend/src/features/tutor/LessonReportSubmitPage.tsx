@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import { ArrowLeft, CheckCircle2, Star, Sparkles, Send } from 'lucide-react';
 
@@ -32,8 +30,7 @@ export default function LessonReportSubmitPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
+    <div className="space-y-6">
 
       <div className="bg-white border-b border-slate-200 py-3">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs">
@@ -234,8 +231,6 @@ export default function LessonReportSubmitPage() {
           )}
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Gamepad2,
   Award,
+  Users,
 } from 'lucide-react';
 
 // ★ Helper: chuẩn hoá role về string code (xử lý cả 2 dạng: string hoặc object)
@@ -122,94 +123,84 @@ export const Navbar: React.FC = () => {
             </Link>
 
             <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
-              {/* ✅ LUỒNG 1: Tìm gia sư - LUÔN HIỆN */}
-              <Link
-                to="/tutors"
-                className={`transition-colors py-1 ${
-                  location.pathname === '/tutors'
-                    ? 'text-emerald-800 border-b-2 border-emerald-800'
-                    : 'text-slate-600 hover:text-emerald-900'
-                }`}
-              >
-                Tìm Gia Sư
-              </Link>
+              {/* 1. Nếu là GIA SƯ: Chỉ hiện duy nhất Bàn Làm Việc Gia Sư */}
+              {currentUser && hasRole('TUTOR') && !hasRole('ADMIN') && (
+                <Link
+                  to="/tutor/dashboard"
+                  className={`transition-colors py-1 flex items-center gap-1.5 font-bold ${
+                    location.pathname.startsWith('/tutor')
+                      ? 'text-emerald-800 border-b-2 border-emerald-800'
+                      : 'text-slate-600 hover:text-emerald-900'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4 text-emerald-700" />
+                  <span>Bàn Làm Việc Gia Sư</span>
+                </Link>
+              )}
 
-              {/* 🚧 TẠM ẨN - DIỄN ĐÀN */}
-              {/* <Link to="/forum" className="...">Diễn Đàn</Link> */}
+              {/* 2. Nếu là PHỤ HUYNH: Chỉ hiện duy nhất Bàn Làm Việc Phụ Huynh */}
+              {currentUser && hasRole('PARENT') && !hasRole('ADMIN') && !hasRole('TUTOR') && (
+                <Link
+                  to="/parent/dashboard"
+                  className={`transition-colors py-1 flex items-center gap-1.5 font-bold ${
+                    location.pathname.startsWith('/parent')
+                      ? 'text-emerald-800 border-b-2 border-emerald-800'
+                      : 'text-slate-600 hover:text-emerald-900'
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-emerald-700" />
+                  <span>Bàn Làm Việc Phụ Huynh</span>
+                </Link>
+              )}
 
-              {/* 🚧 TẠM ẨN - CỔNG NHÂN SỰ (chỉ hiện cho ADMIN) */}
+              {/* 3. Nếu là ADMIN */}
               {hasRole('ADMIN') && (
-                <Link
-                  to="/admin"
-                  className={`transition-colors py-1 flex items-center gap-1 font-bold ${
-                    location.pathname.startsWith('/admin')
-                      ? 'text-indigo-700 border-b-2 border-indigo-700'
-                      : 'text-indigo-600 hover:text-indigo-900'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>Admin Center</span>
-                </Link>
-              )}
-
-              {/* 🚧 TẠM ẨN - STAFF PORTAL (chỉ hiện cho STAFF, không phải ADMIN) */}
-              {!hasRole('ADMIN') && roleCodes.some(r => r.startsWith('STAFF_')) && (
-                <Link
-                  to={getStaffDashboardPath(roleCodes, currentUser?.departmentCode)}
-                  className={`transition-colors py-1 flex items-center gap-1 font-bold ${
-                    location.pathname.startsWith('/staff')
-                      ? 'text-indigo-700 border-b-2 border-indigo-700'
-                      : 'text-indigo-600 hover:text-indigo-900'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                  <span>Cổng Nhân Sự</span>
-                </Link>
-              )}
-
-              {/* ✅ LUỒNG 1: Khu vực phụ huynh */}
-              {hasRole('PARENT') && (
                 <>
                   <Link
-                    to="/parent/dashboard"
+                    to="/admin"
+                    className={`transition-colors py-1 flex items-center gap-1 font-bold ${
+                      location.pathname.startsWith('/admin')
+                        ? 'text-indigo-700 border-b-2 border-indigo-700'
+                        : 'text-indigo-600 hover:text-indigo-900'
+                    }`}
+                  >
+                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                    <span>Admin Center</span>
+                  </Link>
+                  <Link
+                    to="/tutors"
                     className={`transition-colors py-1 ${
-                      location.pathname.startsWith('/parent')
-                        ? 'text-emerald-800 font-bold border-b-2 border-emerald-800'
+                      location.pathname === '/tutors'
+                        ? 'text-emerald-800 border-b-2 border-emerald-800'
                         : 'text-slate-600 hover:text-emerald-900'
                     }`}
                   >
-                    Khu Vực Phụ Huynh
-                  </Link>
-                  <Link
-                    to="/parent/requests/new"
-                    className="text-emerald-700 hover:text-emerald-900 transition flex items-center gap-1 font-bold"
-                  >
-                    <span>+ Đăng Lớp Học</span>
+                    Tìm Gia Sư
                   </Link>
                 </>
               )}
 
-              {/* ✅ LUỒNG 1+2: Khu vực gia sư */}
-              {hasRole('TUTOR') && (
-                <Link
-                  to="/tutor/dashboard"
-                  className={`transition-colors py-1 ${
-                    location.pathname.startsWith('/tutor')
-                      ? 'text-emerald-800 font-bold border-b-2 border-emerald-800'
-                      : 'text-slate-600 hover:text-emerald-900'
-                  }`}
-                >
-                  Bàn Làm Việc Gia Sư
-                </Link>
+              {/* 4. Khách vãng lai chưa đăng nhập */}
+              {!currentUser && (
+                <>
+                  <Link
+                    to="/tutors"
+                    className={`transition-colors py-1 ${
+                      location.pathname === '/tutors'
+                        ? 'text-emerald-800 border-b-2 border-emerald-800'
+                        : 'text-slate-600 hover:text-emerald-900'
+                    }`}
+                  >
+                    Tìm Gia Sư
+                  </Link>
+                  <Link
+                    to="/apply"
+                    className="text-slate-600 hover:text-emerald-900 transition-colors py-1"
+                  >
+                    Đăng Ký Gia Sư
+                  </Link>
+                </>
               )}
-
-              {/* ✅ LUỒNG 3: Đăng ký gia sư (public) */}
-              <Link
-                to="/apply"
-                className="text-slate-600 hover:text-emerald-900 transition-colors py-1"
-              >
-                Đăng Ký Gia Sư
-              </Link>
             </nav>
           </div>
 

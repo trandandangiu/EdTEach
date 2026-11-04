@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { TutorClass, TutorOffer, LessonReport } from '../../types/edtech';
@@ -48,61 +46,29 @@ export default function TutorDashboard() {
   const pendingOffers = offers.filter(o => o.status === 'PENDING');
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
+    <div className="space-y-6">
+      {/* Tutor Portal Header Card */}
+      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span className="text-xs font-semibold text-emerald-700">VietTutor · Bàn Làm Việc Gia Sư</span>
+          <h1 className="text-2xl font-black text-slate-900 mt-0.5">
+            Xin chào, {currentUser?.name || 'Thầy Gia Sư'}
+          </h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Trạng thái giảng dạy: <span className="text-emerald-700 font-bold">Sẵn sàng nhận lớp & giảng dạy</span>
+          </p>
+        </div>
 
-      {/* Tutor Portal Subnav */}
-      <div className="bg-emerald-950 text-white border-b border-emerald-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <span className="text-xs font-semibold text-emerald-300">Bàn Làm Việc Gia Sư</span>
-              <h1 className="text-2xl font-black text-white mt-0.5">
-                Xin chào, {currentUser?.name || 'Thầy Hoàng Nam'}
-              </h1>
-              <p className="text-xs text-emerald-200 mt-0.5">
-                Mã gia sư: TUT-01 · Trạng thái: Sẵn sàng nhận lớp mới
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                to="/tutor/board"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs"
-              >
-                <span>Xem Bảng Lớp Mở Tuyển</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Sub Navigation Links */}
-          <div className="flex items-center gap-2 mt-6 pt-3 border-t border-emerald-900/80 text-xs font-semibold overflow-x-auto">
-            <Link to="/tutor/dashboard" className="px-3 py-1.5 rounded-lg bg-emerald-800 text-white font-bold">
-              Tổng Quan
-            </Link>
-            <Link to="/tutor/board" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Bảng Lớp Mở
-            </Link>
-            <Link to="/tutor/offers" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition flex items-center gap-1">
-              <span>Hòm Thư Offer</span>
-              {pendingOffers.length > 0 && (
-                <span className="w-4 h-4 rounded-full bg-amber-400 text-emerald-950 text-[10px] flex items-center justify-center font-bold">
-                  {pendingOffers.length}
-                </span>
-              )}
-            </Link>
-            <Link to="/tutor/classes" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Lớp Đang Dạy ({activeClasses.length})
-            </Link>
-            <Link to="/tutor/tasks" className="px-3 py-1.5 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-900 transition">
-              Giao Nhiệm Vụ Cho Bé
-            </Link>
-          </div>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/tutor/offers"
+            className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs"
+          >
+            <span>Hòm Thư Lời Mời ({pendingOffers.length})</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full space-y-8">
         {/* Urgent Alert Banner (If report pending) */}
         <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -255,12 +221,9 @@ export default function TutorDashboard() {
                   </div>
                 </div>
               ))}
-            </div>
           </div>
         </div>
       </div>
-
-      <Footer />
     </div>
   );
 }

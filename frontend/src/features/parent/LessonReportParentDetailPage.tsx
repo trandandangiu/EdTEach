@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Navbar } from '../../components/layout/Navbar';
-import { Footer } from '../../components/layout/Footer';
 import { api } from '../../services/api';
 import { LessonReport } from '../../types/edtech';
 import { ArrowLeft, Star, CheckCircle, FileText, Sparkles, MessageSquare } from 'lucide-react';
@@ -29,35 +27,27 @@ export default function LessonReportParentDetailPage() {
 
   if (loading || !report) {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-        <Navbar />
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-xs text-slate-500 font-semibold">Đang tải báo cáo buổi học...</p>
-        </div>
+      <div className="py-12 text-center">
+        <p className="text-xs text-slate-500 font-semibold">Đang tải báo cáo buổi học...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
-      <Navbar />
-
-      <div className="bg-white border-b border-slate-200 py-3">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between text-xs">
-          <Link to="/parent/reports" className="text-emerald-800 hover:underline flex items-center gap-1.5 font-bold">
-            <ArrowLeft className="w-4 h-4" />
-            <span>Quay lại danh sách báo cáo</span>
-          </Link>
-          <span className="text-slate-400">Mã phiếu: {report.id}</span>
-        </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs text-xs">
+        <Link to="/parent/reports" className="text-emerald-800 hover:underline flex items-center gap-1.5 font-bold">
+          <ArrowLeft className="w-4 h-4" />
+          <span>Quay lại danh sách báo cáo</span>
+        </Link>
+        <span className="text-slate-400">Mã phiếu: {report.id}</span>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
-        <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-          <div className="border-b border-slate-100 pb-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-                Phiếu Báo Cáo Buổi Học Số {report.lessonNumber}
+      <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+        <div className="border-b border-slate-100 pb-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
+              Phiếu Báo Cáo Buổi Học Số {report.lessonNumber}
               </span>
               <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md flex items-center gap-1">
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -121,9 +111,6 @@ export default function LessonReportParentDetailPage() {
             </button>
           </div>
         </div>
-      </div>
-
-      <Footer />
     </div>
   );
 }
