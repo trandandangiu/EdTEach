@@ -117,7 +117,7 @@ export const Navbar: React.FC = () => {
                   Viet<span className="text-emerald-700">Tutor</span>
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700/80">
-                  Gia Sư Tinh Hoa & EdTech
+                  Gia Sư Tinh Hoa
                 </span>
               </div>
             </Link>
@@ -275,7 +275,7 @@ export const Navbar: React.FC = () => {
                             onClick={() => setRoleMenuOpen(false)}
                             className="block px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
                           >
-                            Quản trị viên (Admin)
+                            Quản trị viên
                           </Link>
                         )}
 

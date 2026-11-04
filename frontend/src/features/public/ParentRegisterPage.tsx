@@ -51,8 +51,11 @@ export default function ParentRegisterPage() {
       const res: any = await api.auth.sendEmailOtp(email.trim(), 'PARENT_REGISTER');
       setIsOtpSent(true);
       setCountdown(60);
-      const extraHint = res.debugOtp ? ` (Mã kiểm thử: ${res.debugOtp})` : '';
-      setOtpMsg({ type: 'success', text: `Đã gửi mã xác nhận 6 số về Gmail "${email}". Vui lòng kiểm tra hộp thư!${extraHint}` });
+      if (res.debugOtp && !res.sentViaSmtp) {
+        setOtpCode(res.debugOtp);
+      }
+      const extraHint = res.debugOtp ? ` (Mã OTP test: ${res.debugOtp})` : '';
+      setOtpMsg({ type: 'success', text: `${res.message || `Đã gửi mã xác thực về Gmail ${email}`}${extraHint}` });
     } catch (err: any) {
       setOtpMsg({ type: 'error', text: err?.message || 'Không thể gửi mã xác nhận. Vui lòng thử lại.' });
     } finally {

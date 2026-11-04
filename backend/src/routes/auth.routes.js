@@ -9,7 +9,9 @@ const router = Router();
 // Public auth
 router.post('/login', loginLimiter, authController.login);
 router.post('/register/parent', registerLimiter, authController.registerParent);
+router.post('/register-parent', registerLimiter, authController.registerParent);
 router.post('/register/applicant', registerLimiter, authController.registerApplicant);
+router.post('/register-applicant', registerLimiter, authController.registerApplicant);
 router.post('/student-code', authController.loginWithStudentCode);
 router.post('/send-email-otp', otpLimiter, authController.sendEmailOtp);
 router.post('/verify-email-otp', authController.verifyEmailOtp);

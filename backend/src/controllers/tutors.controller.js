@@ -6,9 +6,12 @@ export const tutorsController = {
   async apply(req, res, next) {
     try {
       const {
+        username,
+        password,
         fullName,
         email,
         phone,
+        avatarUrl,
         dob,
         gender,
         province,
@@ -18,28 +21,33 @@ export const tutorsController = {
         degree,
         experienceYears = 0,
         bio,
+        customSubjects,
         expectedRate = 200000,
         teachingMode = 'BOTH',
         canTeachGroup = false,
         subjectLevelIds = [],
       } = req.body;
 
+      const finalUsername = (username || (email ? email.split('@')[0] : `tutor_${Date.now().toString().slice(-6)}`)).trim().toLowerCase();
+      const bcrypt = await import('bcrypt');
+      const passwordHash = await bcrypt.hash(password || 'password123', 10);
+
       let userId = req.user?.id;
-      // Nếu chưa có tài khoản, tạo hoặc tìm user theo email/phone
+      // Nếu chưa có tài khoản, tạo hoặc tìm user theo username/email/phone
       if (!userId) {
         let user = await prisma.user.findFirst({
-          where: { OR: [{ email }, { phone }] },
+          where: { OR: [{ username: finalUsername }, { email }, { phone }] },
         });
 
         if (!user) {
-          const defaultPassword = await import('bcrypt').then((b) => b.hash('123456', 10));
           user = await prisma.user.create({
             data: {
-              username: email ? email.split('@')[0] : `tutor_${Date.now().toString().slice(-6)}`,
+              username: finalUsername,
               email: email || `tutor_${Date.now()}@edtech.local`,
               phone: phone || '',
               fullName,
-              passwordHash: defaultPassword,
+              avatarUrl: avatarUrl || null,
+              passwordHash,
               userType: 'TUTOR',
             },
           });
@@ -51,11 +59,27 @@ export const tutorsController = {
               data: { userId: user.id, roleId: applicantRole.id },
             });
           }
+        } else {
+          // Cập nhật thông tin avatar hoặc password nếu có
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              fullName: fullName || user.fullName,
+              avatarUrl: avatarUrl || user.avatarUrl,
+              passwordHash: password ? passwordHash : user.passwordHash,
+            },
+          });
         }
         userId = user.id;
       }
 
       const code = `TAP${Date.now().toString().slice(-6)}`;
+
+      const fullBio = [
+        req.body.subjects ? `Môn đăng ký: ${Array.isArray(req.body.subjects) ? req.body.subjects.join(', ') : req.body.subjects}` : '',
+        customSubjects ? `Môn tự nhập: ${customSubjects}` : '',
+        bio
+      ].filter(Boolean).join('\n');
 
       const application = await prisma.$transaction(async (tx) => {
         // Tạo đơn ứng tuyển
@@ -74,7 +98,7 @@ export const tutorsController = {
             major,
             degree,
             experienceYears: Number(experienceYears),
-            bio,
+            bio: fullBio,
             expectedRate,
             teachingMode,
             canTeachGroup: Boolean(canTeachGroup),
@@ -100,7 +124,7 @@ export const tutorsController = {
       res.status(201).json({
         success: true,
         data: application,
-        message: 'Nộp hồ sơ ứng tuyển thành công! Vui lòng làm bài khảo sát năng lực.',
+        message: 'Hồ sơ ứng tuyển gia sư đã được gửi thành công! Ban Tuyển Dụng sẽ liên hệ thẩm định.',
       });
     } catch (err) {
       next(err);
@@ -410,6 +434,7 @@ export const tutorsController = {
       const applications = await prisma.tutorApplication.findMany({
         where,
         include: {
+          user: { select: { id: true, username: true, fullName: true, avatarUrl: true, email: true, phone: true } },
           subjects: {
             include: {
               subjectLevel: { include: { subject: true, gradeLevel: true } },
@@ -435,7 +460,7 @@ export const tutorsController = {
       const application = await prisma.tutorApplication.findUnique({
         where: { id },
         include: {
-          user: { select: { id: true, username: true, email: true, phone: true } },
+          user: { select: { id: true, username: true, fullName: true, avatarUrl: true, email: true, phone: true } },
           subjects: {
             include: {
               subjectLevel: { include: { subject: true, gradeLevel: true } },
@@ -516,6 +541,15 @@ export const tutorsController = {
           }
         }
 
+        if (status === 'TESTING') {
+          try {
+            const { emailService } = await import('../services/email.service.js');
+            await emailService.sendExamInvitation(app.email, app.fullName, req.body.examInfo || {});
+          } catch (mailErr) {
+            console.warn('Gửi email mời thi thất bại:', mailErr.message);
+          }
+        }
+
         return resApp;
       });
 
@@ -526,6 +560,8 @@ export const tutorsController = {
           let notifTitle = 'Hồ sơ ứng tuyển gia sư đã được cập nhật';
           if (interviewAt) {
             notifTitle = `Lịch phỏng vấn gia sư: ${new Date(interviewAt).toLocaleString('vi-VN')}`;
+          } else if (status === 'TESTING') {
+            notifTitle = 'Hồ sơ đạt sơ tuyển: Mời bạn làm bài khảo sát chuyên môn (đã gửi email)';
           } else if (status === 'APPROVED') {
             notifTitle = 'Chúc mừng! Hồ sơ gia sư của bạn đã được phê duyệt';
           } else if (status === 'REJECTED') {
@@ -722,10 +758,20 @@ export const tutorsController = {
         },
       });
 
+      // Nếu nộp file bài thi Word/Excel -> tự động chuyển trạng thái hồ sơ sang TEST_SUBMITTED
+      if (category === 'EXAM_SUBMISSION' || category === 'TEST_PAPER') {
+        await prisma.tutorApplication.update({
+          where: { id },
+          data: { status: 'TEST_SUBMITTED' },
+        });
+      }
+
       res.status(201).json({
         success: true,
         data: attachment,
-        message: 'Tải lên tài liệu minh chứng thành công',
+        message: category === 'EXAM_SUBMISSION' || category === 'TEST_PAPER'
+          ? 'Đã tải lên bài làm khảo sát chuyên môn (Word/Excel) thành công!'
+          : 'Tải lên tài liệu minh chứng thành công',
       });
     } catch (err) {
       next(err);

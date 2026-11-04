@@ -21,20 +21,20 @@ export default function AdminDashboard() {
 
   const navGroups = [
     {
-      group: 'VẬN HÀNH & GIÁO DỤC',
+      group: '',
       items: [
         { label: 'Tổng quan điều hành', path: '/admin', icon: LayoutDashboard, exact: true },
-        { label: 'Tuyển dụng & Thẩm định', path: '/admin/recruit', icon: UserCheck },
-        { label: 'Điều phối & Lớp học', path: '/admin/matching', icon: Layers },
-        { label: 'CSKH & Giám sát 24/48h', path: '/admin/care', icon: PhoneCall },
+        { label: 'Tuyển dụng và Thẩm định', path: '/admin/recruit', icon: UserCheck },
+        { label: 'Điều phối lớp học', path: '/admin/matching', icon: Layers },
+        { label: 'Trung tâm chăm sóc', path: '/admin/care', icon: PhoneCall },
         // [FUTURE] { label: 'Học thuật & Ngân hàng đề', path: '/admin/academic', icon: BookOpenCheck },
         // [FUTURE] { label: 'Kiểm duyệt diễn đàn', path: '/admin/forum-mod', icon: MessageSquare },
       ],
     },
     {
-      group: 'QUẢN TRỊ HỆ THỐNG',
+      group: 'QUẢN TRỊ',
       items: [
-        { label: 'Quản lý Người dùng (Phụ huynh & Gia sư)', path: '/admin/system/users', icon: Users },
+        { label: 'Quản lý Người dùng', path: '/admin/system/users', icon: Users },
         // [FUTURE] { label: 'Cơ cấu phòng ban', path: '/admin/system/departments', icon: Building2 },
         // [FUTURE] { label: 'Trình duyệt CSDL (Tables)', path: '/admin/system/database', icon: Database },
         // [FUTURE] { label: 'Nhật ký kiểm toán (Audit)', path: '/admin/system/audit-logs', icon: ShieldAlert },

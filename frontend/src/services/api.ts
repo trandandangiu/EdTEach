@@ -301,6 +301,13 @@ export const api = {
         rejectReason?: string;
         interviewAt?: string;
         interviewNote?: string;
+        examInfo?: {
+          testTitle?: string;
+          examFileType?: string;
+          examFileUrl?: string;
+          deadlineHours?: number;
+          notes?: string;
+        };
       }
     ) {
       return request(`/api/tutors/applications/${id}/review`, {

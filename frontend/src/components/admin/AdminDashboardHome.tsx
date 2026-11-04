@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  Layers, 
-  Clock, 
-  AlertTriangle, 
-  TrendingUp, 
-  Award, 
-  CheckCircle2, 
+import {
+  Users,
+  Layers,
+  Clock,
+  AlertTriangle,
+  TrendingUp,
+  Award,
+  CheckCircle2,
   ArrowRight,
   ShieldCheck,
   PhoneCall
@@ -53,10 +53,10 @@ export default function AdminDashboardHome() {
       {/* Top Banner */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest">Hệ Thống Vận Hành VietTutor</span>
-          <h1 className="text-2xl font-black text-slate-900 mt-1">Bảng Điều Khiển Trung Tâm Chỉ Huy</h1>
+          <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest">Hệ Thống Vận Hành </span>
+          <h1 className="text-2xl font-black text-slate-900 mt-1">Bảng Điều Khiển</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Giám sát thời gian thực: Tuyển dụng, Điều phối lớp song song và Chăm sóc học viên 24/48h.
+
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export default function AdminDashboardHome() {
             to="/admin/matching"
             className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition"
           >
-            Mở hàng đợi ghép lớp ({openRequests.length})
+          Trường hợp đợi ghép lớp ({openRequests.length})
           </Link>
         </div>
       </div>
@@ -82,28 +82,19 @@ export default function AdminDashboardHome() {
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 font-medium">Lớp cần điều phối</span>
+          <span className="text-xs text-slate-500 font-medium">Lớp học cần điều phối</span>
           <div className="flex items-baseline justify-between mt-2">
             <span className="text-2xl font-black text-emerald-800">{openRequests.length} yêu cầu</span>
-            <span className="text-xs font-semibold text-slate-400">Tỉ lệ ghép 92%</span>
           </div>
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 font-medium">Cảnh báo CSKH 24h</span>
+          <span className="text-xs text-slate-500 font-medium">Cảnh báo chăm sóc phụ huynh</span>
           <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl font-black text-rose-600">{criticalCare.length} ca gấp</span>
+            <span className="text-2xl font-black text-rose-600">{criticalCare.length} trường hợp</span>
             <Link to="/admin/care" className="text-xs font-bold text-rose-600 hover:underline">
               Xử lý →
             </Link>
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-          <span className="text-xs text-slate-500 font-medium">Doanh thu tháng (GMV)</span>
-          <div className="flex items-baseline justify-between mt-2">
-            <span className="text-2xl font-black text-emerald-800">184.200.000 đ</span>
-            <span className="text-xs font-bold text-emerald-600">+14% MoM</span>
           </div>
         </div>
       </div>
@@ -115,7 +106,7 @@ export default function AdminDashboardHome() {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <PhoneCall className="w-4 h-4 text-rose-600" />
-              <h2 className="text-sm font-bold text-slate-900">Ca hỗ trợ cần can thiệp CSKH 24h</h2>
+              <h2 className="text-sm font-bold text-slate-900">Trường hợp cần xử lý</h2>
             </div>
             <Link to="/admin/care" className="text-xs font-bold text-emerald-800 hover:underline">
               Xem tất cả
@@ -156,10 +147,10 @@ export default function AdminDashboardHome() {
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-700" />
-              <h2 className="text-sm font-bold text-slate-900">Bài khảo sát năng lực chờ thẩm định</h2>
+              <h2 className="text-sm font-bold text-slate-900">Bài khảo sát năng lực</h2>
             </div>
             <Link to="/admin/recruit" className="text-xs font-bold text-emerald-800 hover:underline">
-              Vào Kanban tuyển dụng
+              Vào quy trình tuyển dụng
             </Link>
           </div>
 
@@ -173,9 +164,8 @@ export default function AdminDashboardHome() {
                     <span className="font-bold text-slate-900">
                       {att.applicantName ?? att.applicant?.fullName ?? att.user?.fullName ?? 'Ứng viên'}
                     </span>
-                    <span className={`px-2 py-0.5 rounded font-bold ${
-                      att.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
+                    <span className={`px-2 py-0.5 rounded font-bold ${att.status === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
                       {att.status === 'PASSED' ? 'Đã duyệt' : 'Chờ chấm tự luận'}
                     </span>
                   </div>

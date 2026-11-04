@@ -23,39 +23,39 @@ export default function ParentLayout() {
       path: '/parent/dashboard',
       icon: LayoutDashboard,
       exact: true,
-      desc: 'Tiến độ học tập & báo cáo mới nhất',
+      desc: 'Tiến độ học tập của các con',
     },
     {
       label: 'Hồ sơ con cái',
       path: '/parent/children',
       icon: Users,
-      desc: 'Quản lý thông tin học sinh & lớp học',
+      desc: 'Quản lý thông tin và hồ sơ học tập của con',
     },
     {
-      label: 'Lịch học tuần này',
+      label: 'Lịch học',
       path: '/parent/schedule',
       icon: Calendar,
-      desc: 'Thời khoá biểu & nhắc lịch học của con',
+      desc: 'Thời khoá biểu và lịch học của con',
     },
     {
       label: 'Yêu cầu tìm gia sư',
       path: '/parent/requests',
       icon: FileText,
       exact: true,
-      desc: 'Lịch sử & trạng thái ghép lớp gia sư',
+      desc: 'Lịch sử và trạng thái ghép lớp gia sư',
     },
     {
-      label: '+ Đăng yêu cầu mới',
+      label: 'Đăng yêu cầu mới',
       path: '/parent/requests/new',
       icon: PlusCircle,
       desc: 'Gửi yêu cầu tìm gia sư theo nhu cầu',
       highlight: true,
     },
     {
-      label: 'Sổ liên lạc & Báo cáo',
+      label: 'Sổ liên lạc và Báo cáo',
       path: '/parent/reports',
       icon: BookOpenCheck,
-      desc: 'Xem & xác nhận nhận xét từng buổi học',
+      desc: 'Xem và xác nhận nhận xét từng buổi học',
     },
   ];
 
@@ -79,7 +79,7 @@ export default function ParentLayout() {
 
             <nav className="space-y-1">
               <span className="text-[10px] font-black text-emerald-300 tracking-wider px-3 block mb-2">
-                CHỨC NĂNG PHỤ HUYNH
+                CHỨC NĂNG
               </span>
               {navItems.map((item, idx) => {
                 const Icon = item.icon;

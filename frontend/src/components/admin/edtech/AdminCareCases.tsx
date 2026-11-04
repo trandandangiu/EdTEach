@@ -96,10 +96,10 @@ export default function AdminCareCases() {
   const defaultTeam = location.pathname.includes('/staff/tutor-care')
     ? 'CS_TUTOR'
     : location.pathname.includes('/staff/academic')
-    ? 'ACADEMIC'
-    : location.pathname.includes('/staff/care')
-    ? 'CS_PARENT'
-    : 'ALL';
+      ? 'ACADEMIC'
+      : location.pathname.includes('/staff/care')
+        ? 'CS_PARENT'
+        : 'ALL';
 
   const [currentTeam, setCurrentTeam] = useState<string>(defaultTeam);
   const [activeSubTab, setActiveSubTab] = useState<'tickets' | 'unconfirmed' | 'tutors'>('tickets');
@@ -265,14 +265,14 @@ export default function AdminCareCases() {
             {currentTeam === 'CS_TUTOR'
               ? 'Ban Chăm Sóc Gia Sư & Giám Sát Giảng Dạy'
               : currentTeam === 'ACADEMIC'
-              ? 'Ban Giám Sát Học Thuật & Đổi Lịch / Giáo Trình'
-              : 'Ban CSKH & Giám Sát Chất Lượng Phụ Huynh'}
+                ? 'Ban Giám Sát '
+                : ''}
           </span>
           <h1 className="text-2xl font-black text-slate-900 mt-1">
-            Trung Tâm Xử Lý Ca Trễ Hạn, SLA & Hỗ Trợ 24/48h
+            Trung Tâm chăm sóc 
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Theo dõi vi phạm trễ nộp báo cáo, gọi điện xác nhận thay phụ huynh và chăm sóc gia sư toàn diện.
+
           </p>
         </div>
 
@@ -289,13 +289,13 @@ export default function AdminCareCases() {
               onClick={() => setCurrentTeam('CS_PARENT')}
               className={`px-3 py-1.5 rounded-xl transition ${currentTeam === 'CS_PARENT' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
             >
-              CSKH Phụ Huynh
+              Phụ Huynh
             </button>
             <button
               onClick={() => setCurrentTeam('CS_TUTOR')}
               className={`px-3 py-1.5 rounded-xl transition ${currentTeam === 'CS_TUTOR' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
             >
-              CSKH Gia Sư
+              Gia Sư
             </button>
             <button
               onClick={() => setCurrentTeam('ACADEMIC')}
@@ -321,7 +321,7 @@ export default function AdminCareCases() {
 
         <div className="bg-white p-5 rounded-2xl border border-rose-200 bg-rose-50/10 shadow-xs flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Quá Hạn SLA (Cảnh Báo)</span>
+            <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Quá Hạn</span>
             <div className="text-2xl font-black text-rose-700 mt-0.5">{stats.overdue}</div>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
@@ -344,9 +344,8 @@ export default function AdminCareCases() {
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold">
         <button
           onClick={() => setActiveSubTab('tickets')}
-          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
-            activeSubTab === 'tickets' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-          }`}
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${activeSubTab === 'tickets' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+            }`}
         >
           <AlertCircle className="w-4 h-4" />
           <span>Danh Sách Phiếu Hỗ Trợ</span>
@@ -355,12 +354,11 @@ export default function AdminCareCases() {
         {(currentTeam === 'CS_PARENT' || currentTeam === 'ALL') && (
           <button
             onClick={() => setActiveSubTab('unconfirmed')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
-              activeSubTab === 'unconfirmed' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-            }`}
+            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${activeSubTab === 'unconfirmed' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+              }`}
           >
             <FileCheck className="w-4 h-4" />
-            <span>Báo Cáo {'>'} 24h Chưa Xác Nhận</span>
+            <span>Báo Cáo Chưa Xác Nhận</span>
           </button>
         )}
       </div>
@@ -375,7 +373,7 @@ export default function AdminCareCases() {
             </div>
           ) : cases.length === 0 ? (
             <div className="py-16 text-center text-slate-400 text-xs bg-white rounded-3xl border border-slate-200">
-              Hiện không có ca chăm sóc nào cần xử lý lúc này. Toàn bộ lớp học đang vận hành an toàn!
+              Hiện không có trường hợp nào cần xử lý lúc này. Toàn bộ lớp học đang vận hành ổn định
             </div>
           ) : (
             <div className="space-y-4">
@@ -385,16 +383,14 @@ export default function AdminCareCases() {
                 return (
                   <div
                     key={c.id}
-                    className={`bg-white p-6 rounded-3xl border shadow-xs space-y-4 text-xs transition ${
-                      isOverdue ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200'
-                    }`}
+                    className={`bg-white p-6 rounded-3xl border shadow-xs space-y-4 text-xs transition ${isOverdue ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200'
+                      }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-extrabold text-slate-900">{c.code}</span>
-                        <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                          c.priority >= 3 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${c.priority >= 3 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
                           {c.priority >= 3 ? 'Mức độ: Khẩn cấp' : 'Mức độ: Cao'}
                         </span>
                         <span className="font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
@@ -722,13 +718,12 @@ export default function AdminCareCases() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className={`px-3 py-1 rounded-xl font-bold ${
-                      tutorPerf.tutor.status === 'ACTIVE'
+                    <span className={`px-3 py-1 rounded-xl font-bold ${tutorPerf.tutor.status === 'ACTIVE'
                         ? 'bg-emerald-100 text-emerald-800'
                         : tutorPerf.tutor.status === 'PAUSED'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-rose-100 text-rose-800'
-                    }`}>
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-rose-100 text-rose-800'
+                      }`}>
                       Trạng thái: {tutorPerf.tutor.status}
                     </span>
 

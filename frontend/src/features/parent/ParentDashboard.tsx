@@ -48,12 +48,12 @@ export default function ParentDashboard() {
       {/* Parent Welcome Header Card */}
       <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-semibold text-emerald-700">VietTutor · Khu Vực Quản Lý Học Tập</span>
+          <span className="text-xs font-semibold text-emerald-700">Khu Vực Quản Lý Học Tập Của Bé</span>
           <h1 className="text-2xl font-black text-slate-900 mt-0.5">
             Chào mừng, {currentUser?.name || 'Phụ Huynh'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Đồng hành học tập & quản lý sổ liên lạc các con
+            Đồng hành học tập cùng con yêu và quản lý tiến trình học tập của bé một cách hiệu quả.
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export default function ParentDashboard() {
             className="bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-1.5 shadow-xs"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Đăng Lớp Học Mới</span>
+            <span>Tìm Gia Sư cho bé</span>
           </Link>
         </div>
       </div>

@@ -55,7 +55,7 @@ export const loginLimiter = createLimiter({
 
 export const otpLimiter = createLimiter({
   windowMs: 60 * 60 * 1000, // 1 giờ
-  max: 5,                   // 5 lần gửi OTP/giờ
+  max: process.env.NODE_ENV === 'production' ? 10 : 100, // 100 lần trong môi trường phát triển để test thoải mái
   message: 'Quá giới hạn gửi mã xác thực. Vui lòng thử lại sau 1 giờ.',
 });
 
