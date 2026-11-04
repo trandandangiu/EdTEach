@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GraduationCap, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import bgLogin from '../assets/backgroundlogin.jpg';
 
 // Helper: xác định trang đích sau khi login thành công dựa trên role
 const getRedirectPath = (roles: string[]): string => {
@@ -71,28 +72,34 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div 
+      className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url(${bgLogin})` }}
+    >
+      {/* Soft emerald overlay to ensure high contrast and readability */}
+      <div className="absolute inset-0 bg-emerald-950/45 backdrop-blur-[1px]" />
+
       {/* Logo + Title */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
-        <Link to="/" className="inline-flex items-center gap-2.5">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-800 text-white flex items-center justify-center font-bold shadow-md">
-            <GraduationCap className="w-7 h-7 text-emerald-100" />
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
+        <Link to="/" className="inline-flex items-center gap-2.5 group">
+          <div className="w-12 h-12 rounded-2xl bg-white text-emerald-800 flex items-center justify-center font-bold shadow-lg transition-transform group-hover:scale-105">
+            <GraduationCap className="w-7 h-7 text-emerald-800" />
           </div>
-          <span className="font-extrabold text-2xl tracking-tight text-emerald-950">
-            Viet<span className="text-emerald-700">Tutor</span>
+          <span className="font-extrabold text-2xl tracking-tight text-white drop-shadow-md">
+            Viet<span className="text-emerald-300">Tutor</span>
           </span>
         </Link>
-        <h1 className="text-xl font-extrabold text-slate-900">
+        <h1 className="text-xl font-extrabold text-white drop-shadow-xs">
           Đăng nhập hệ thống
         </h1>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-emerald-100 font-medium drop-shadow-xs">
           Nhập tài khoản được cấp để truy cập khu vực của bạn
         </p>
       </div>
 
       {/* Login Card */}
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white py-8 px-6 shadow-xl rounded-3xl border border-slate-200 space-y-5">
+      <div className="relative z-10 mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4">
+        <div className="bg-white/95 backdrop-blur-md py-8 px-6 sm:px-8 shadow-2xl rounded-3xl border border-white/50 space-y-5">
           {/* Error alert */}
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
@@ -114,7 +121,7 @@ export default function Login() {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Nhập tên đăng nhập"
                 disabled={loading}
-                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
+                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 bg-white rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
               />
             </div>
 
@@ -129,14 +136,14 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Nhập mật khẩu"
                 disabled={loading}
-                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
+                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 bg-white rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:bg-emerald-800/70 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm transition text-sm flex items-center justify-center gap-2"
+              className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:bg-emerald-800/70 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2 cursor-pointer"
             >
               {loading ? (
                 <>
@@ -175,8 +182,8 @@ export default function Login() {
       </div>
 
       {/* Back to home */}
-      <div className="mt-6 text-center">
-        <Link to="/" className="text-xs text-slate-500 hover:text-emerald-800 transition">
+      <div className="relative z-10 mt-6 text-center">
+        <Link to="/" className="text-xs font-semibold text-white/90 hover:text-white drop-shadow-sm transition">
           ← Về trang chủ
         </Link>
       </div>
