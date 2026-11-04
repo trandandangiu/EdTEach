@@ -34,7 +34,7 @@ export default function AdminDashboard() {
     {
       group: 'QUẢN TRỊ HỆ THỐNG',
       items: [
-        // [FUTURE] { label: 'Người dùng & Phân quyền', path: '/admin/system/users', icon: Users },
+        { label: 'Quản lý Người dùng (Phụ huynh & Gia sư)', path: '/admin/system/users', icon: Users },
         // [FUTURE] { label: 'Cơ cấu phòng ban', path: '/admin/system/departments', icon: Building2 },
         // [FUTURE] { label: 'Trình duyệt CSDL (Tables)', path: '/admin/system/database', icon: Database },
         // [FUTURE] { label: 'Nhật ký kiểm toán (Audit)', path: '/admin/system/audit-logs', icon: ShieldAlert },
