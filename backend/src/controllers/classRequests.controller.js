@@ -11,6 +11,18 @@ export const classRequestsController = {
       if (subjectLevelId) where.subjectLevelId = Number(subjectLevelId);
       if (onBoard !== undefined) where.onBoard = onBoard === 'true';
 
+      // Nếu user là Phụ Huynh (PARENT), chỉ trả về các yêu cầu tìm gia sư của chính phụ huynh đó
+      const isParent = req.user && (req.user.roles?.includes('PARENT') || req.user.userType === 'PARENT');
+      const isAdminOrStaff = req.user && (req.user.roles?.includes('ADMIN') || req.user.userType === 'STAFF');
+
+      if (isParent && !isAdminOrStaff) {
+        let parent = await prisma.parentProfile.findUnique({ where: { userId: req.user.id } });
+        if (!parent) {
+          parent = await prisma.parentProfile.create({ data: { userId: req.user.id } });
+        }
+        where.parentId = parent.id;
+      }
+
       const requests = await prisma.classRequest.findMany({
         where,
         include: {
@@ -77,9 +89,11 @@ export const classRequestsController = {
   // Tạo yêu cầu tìm gia sư
   async createRequest(req, res, next) {
     try {
-      const {
+      let {
         parentId,
         studentId,
+        studentName,
+        gradeLevelId,
         subjectLevelId,
         preferredFormat,
         sessionsPerWeek,
@@ -96,7 +110,56 @@ export const classRequestsController = {
         onBoard = false,
       } = req.body;
 
+      // 1. Tự động xác định Parent
+      if (!parentId && req.user) {
+        let parent = await prisma.parentProfile.findUnique({ where: { userId: req.user.id } });
+        if (!parent) {
+          parent = await prisma.parentProfile.create({ data: { userId: req.user.id } });
+        }
+        parentId = parent.id;
+      }
+
+      // 2. Tự động xác định Student nếu chưa chọn
+      if (!studentId && parentId) {
+        // Tìm bé theo studentName hoặc lấy bé đầu tiên của phụ huynh
+        let student = null;
+        if (studentName) {
+          student = await prisma.studentProfile.findFirst({
+            where: { parentId, fullName: studentName },
+          });
+        }
+        if (!student) {
+          student = await prisma.studentProfile.findFirst({
+            where: { parentId },
+            orderBy: { createdAt: 'desc' },
+          });
+        }
+        if (!student) {
+          // Tạo nhanh hồ sơ học sinh nếu phụ huynh chưa có
+          const defaultGradeId = gradeLevelId ? Number(gradeLevelId) : 4;
+          student = await prisma.studentProfile.create({
+            data: {
+              parentId,
+              fullName: studentName || 'Học sinh',
+              gradeLevelId: defaultGradeId,
+            },
+          });
+        }
+        studentId = student.id;
+      }
+
+      // 3. Tự động xác định SubjectLevel phù hợp nếu chưa có
+      if (!subjectLevelId) {
+        const student = await prisma.studentProfile.findUnique({ where: { id: studentId } });
+        const gId = student?.gradeLevelId || 4;
+        const subLevel = await prisma.subjectLevel.findFirst({
+          where: { gradeLevelId: gId },
+        });
+        subjectLevelId = subLevel ? subLevel.id : 1;
+      }
+
       const code = `CR${Date.now().toString().slice(-6)}`;
+      const isStaffOrAdmin = req.user?.roles?.includes('ADMIN') || req.user?.userType === 'STAFF';
 
       const request = await prisma.classRequest.create({
         data: {
@@ -117,7 +180,7 @@ export const classRequestsController = {
           note,
           offerMode,
           onBoard,
-          handlerId: req.user.id,
+          handlerId: isStaffOrAdmin ? req.user.id : null,
           status: 'NEW',
         },
         include: {
@@ -295,6 +358,136 @@ export const classRequestsController = {
         data: result,
         message: 'Đã chốt gia sư và ghép lớp thành công!',
       });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Duyệt ghép lớp trực tiếp với 1 gia sư (Direct Match)
+  async directMatch(req, res, next) {
+    try {
+      const { id } = req.params;
+      const { tutorId, feePerSession, classTitle } = req.body;
+
+      if (!tutorId) {
+        return res.status(400).json({ success: false, message: 'Vui lòng chọn gia sư để ghép lớp' });
+      }
+
+      const request = await prisma.classRequest.findUnique({
+        where: { id },
+        include: {
+          student: true,
+          subjectLevel: { include: { subject: true, gradeLevel: true } },
+        },
+      });
+
+      if (!request) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu' });
+      }
+
+      if (request.status === 'MATCHED') {
+        return res.status(400).json({ success: false, message: 'Yêu cầu này đã được ghép lớp trước đó' });
+      }
+
+      const tutor = await prisma.tutorProfile.findUnique({
+        where: { id: tutorId },
+        include: { user: true },
+      });
+      if (!tutor) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy thông tin gia sư' });
+      }
+
+      const finalFee = feePerSession || request.budgetPerSession || tutor.hourlyRate || 200000;
+
+      const result = await prisma.$transaction(async (tx) => {
+        const offer = await tx.classOffer.upsert({
+          where: { requestId_tutorId: { requestId: id, tutorId: tutor.id } },
+          create: {
+            requestId: id,
+            tutorId: tutor.id,
+            source: 'STAFF_OFFER',
+            status: 'SELECTED',
+            proposedPay: finalFee,
+            expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+          },
+          update: {
+            status: 'SELECTED',
+            proposedPay: finalFee,
+          },
+        });
+
+        await tx.classOffer.updateMany({
+          where: { requestId: id, id: { not: offer.id } },
+          data: { status: 'NOT_SELECTED' },
+        });
+
+        await tx.classRequest.update({
+          where: { id },
+          data: { status: 'MATCHED', matchedAt: new Date() },
+        });
+
+        const classCode = `CL${Date.now().toString().slice(-6)}`;
+        const title = classTitle || `Lớp ${request.subjectLevel?.subject?.name || 'Môn học'} ${request.subjectLevel?.gradeLevel?.name || ''} - ${request.student?.fullName || 'Học sinh'}`;
+
+        const newClass = await tx.class.create({
+          data: {
+            code: classCode,
+            title,
+            subjectLevelId: request.subjectLevelId,
+            tutorId: tutor.id,
+            format: request.preferredFormat || 'ONE_ON_ONE',
+            capacity: request.preferredFormat === 'GROUP' ? 5 : 1,
+            teachingMode: request.teachingMode,
+            address: request.address,
+            province: request.province,
+            district: request.district,
+            sessionsPerWeek: request.sessionsPerWeek,
+            sessionDurationMin: request.sessionDurationMin,
+            feePerSession: finalFee,
+            status: 'ACTIVE',
+            startDate: new Date(),
+          },
+        });
+
+        await tx.classStudent.create({
+          data: {
+            classId: newClass.id,
+            studentId: request.studentId,
+            requestId: request.id,
+            feePerSession: finalFee,
+            status: 'ENROLLED',
+          },
+        });
+
+        return { newClass };
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        message: `Đã duyệt ghép lớp thành công với gia sư ${tutor.user?.fullName || ''}!`,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Xóa / Hủy yêu cầu ghép lớp
+  async deleteRequest(req, res, next) {
+    try {
+      const { id } = req.params;
+      const request = await prisma.classRequest.findUnique({ where: { id } });
+      if (!request) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy yêu cầu ghép lớp' });
+      }
+
+      await prisma.$transaction(async (tx) => {
+        await tx.classOffer.deleteMany({ where: { requestId: id } });
+        await tx.classStudent.deleteMany({ where: { requestId: id } });
+        await tx.classRequest.delete({ where: { id } });
+      });
+
+      res.json({ success: true, message: 'Đã xóa yêu cầu ghép lớp thành công' });
     } catch (err) {
       next(err);
     }

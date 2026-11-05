@@ -2,24 +2,18 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { GraduationCap, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import bgLogin from '../assets/backgroundlogin.jpg';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 
 // Helper: xác định trang đích sau khi login thành công dựa trên role
-const getRedirectPath = (roles: string[]): string => {
-  if (!roles || roles.length === 0) return '/';
-  if (roles.includes('ADMIN')) return '/admin';
-  // [FUTURE] if (roles.includes('STAFF_RECRUIT')) return '/staff/recruit';
-  // [FUTURE] if (roles.includes('STAFF_MATCHING')) return '/staff/matching';
-  // [FUTURE] if (roles.includes('STAFF_CS')) return '/staff/care';
-  // [FUTURE] if (roles.includes('STAFF_TUTOR_CARE')) return '/staff/tutor-care';
-  // [FUTURE] if (roles.includes('STAFF_ACADEMIC')) return '/staff/academic';
-  // [FUTURE] if (roles.includes('STAFF_FORUM')) return '/staff/forum';
-  // [FUTURE] if (roles.some((r) => r.startsWith('STAFF_'))) return '/staff/recruit';
-  if (roles.includes('PARENT')) return '/parent/dashboard';
-  if (roles.includes('TUTOR')) return '/tutor/dashboard';
-  if (roles.includes('APPLICANT')) return '/apply';
-  // [FUTURE] if (roles.includes('STUDENT')) return '/kids';
+const getRedirectPath = (roles: string[], actorType?: string): string => {
+  const normRoles = (roles || []).map((r) => (typeof r === 'string' ? r : (r as any)?.code || '')).filter(Boolean);
+  if (normRoles.includes('ADMIN') || actorType === 'ADMIN') return '/admin';
+  if (normRoles.includes('PARENT') || actorType === 'PARENT') return '/parent/dashboard';
+  if (normRoles.includes('TUTOR') || actorType === 'TUTOR') return '/tutor/dashboard';
+  if (normRoles.includes('APPLICANT')) return '/apply';
   return '/';
 };
 
@@ -56,15 +50,20 @@ export default function Login() {
         return;
       }
 
-      // Ưu tiên redirect về trang trước đó nếu có (bị đá ra từ ProtectedRoute)
-      const fromState = (location.state as any)?.from?.pathname;
-      if (fromState && fromState !== '/login') {
-        navigate(fromState, { replace: true });
-        return;
-      }
+      // Xác định dashboard chuẩn dựa trên role tài khoản
+      const target = getRedirectPath(user.roles, user.actorType);
 
-      const target = getRedirectPath(user.roles);
-      navigate(target, { replace: true });
+      // Chỉ chuyển về fromState NẾU trang đó phù hợp với role của tài khoản
+      const fromState = (location.state as any)?.from?.pathname;
+      const isRoleAllowedFromState =
+        fromState &&
+        fromState !== '/login' &&
+        fromState !== '/' &&
+        ((user.roles.includes('ADMIN') || user.actorType === 'ADMIN') ||
+          ((user.roles.includes('PARENT') || user.actorType === 'PARENT') && fromState.startsWith('/parent')) ||
+          ((user.roles.includes('TUTOR') || user.actorType === 'TUTOR') && fromState.startsWith('/tutor')));
+
+      navigate(isRoleAllowedFromState ? fromState : target, { replace: true });
     } catch (err: any) {
       setError(err?.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
       setLoading(false);
@@ -72,118 +71,110 @@ export default function Login() {
   };
 
   return (
-    <div 
-      className="min-h-screen relative flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
+    <div
+      className="min-h-screen relative flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 bg-cover bg-center bg-no-repeat"
       style={{ backgroundImage: `url(${bgLogin})` }}
     >
-      {/* Soft emerald overlay to ensure high contrast and readability */}
-      <div className="absolute inset-0 bg-emerald-950/45 backdrop-blur-[1px]" />
+      {/* Modern neutral overlay with subtle blur */}
+      <div className="absolute inset-0 bg-ink-950/60 backdrop-blur-xs" />
 
       {/* Logo + Title */}
-      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3">
-        <Link to="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-12 h-12 rounded-2xl bg-white text-emerald-800 flex items-center justify-center font-bold shadow-lg transition-transform group-hover:scale-105">
-            <GraduationCap className="w-7 h-7 text-emerald-800" />
-          </div>
-          <span className="font-extrabold text-2xl tracking-tight text-white drop-shadow-md">
-            Viet<span className="text-emerald-300">Tutor</span>
+      <div className="relative z-10 sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2">
+        <Link to="/" className="inline-block">
+          <span className="font-semibold text-2xl tracking-tight text-white drop-shadow-sm">
+            Viet<span className="text-brand-500">Tutor</span>
           </span>
         </Link>
-        <h1 className="text-xl font-extrabold text-white drop-shadow-xs">
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
           Đăng nhập hệ thống
         </h1>
-        <p className="text-xs text-emerald-100 font-medium drop-shadow-xs">
-          Nhập tài khoản được cấp để truy cập khu vực của bạn
+        <p className="text-xs text-ink-300 max-w-xs mx-auto">
+          Truy cập bàn làm việc dành cho Phụ huynh, Gia sư & Quản trị viên
         </p>
       </div>
 
       {/* Login Card */}
-      <div className="relative z-10 mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4">
-        <div className="bg-white/95 backdrop-blur-md py-8 px-6 sm:px-8 shadow-2xl rounded-3xl border border-white/50 space-y-5">
-          {/* Error alert */}
+      <div className="relative z-10 mt-6 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white rounded-3xl border border-ink-200 shadow-2xl shadow-ink-950/20 py-8 px-6 sm:px-8 space-y-5">
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span className="text-xs text-rose-800 font-medium">{error}</span>
+              <AlertCircle className="w-4 h-4 text-danger-500 shrink-0 mt-0.5" />
+              <span className="text-xs text-danger-600 font-medium">{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Tên đăng nhập
-              </label>
-              <input
-                type="text"
-                autoComplete="username"
-                autoFocus
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nhập tên đăng nhập"
-                disabled={loading}
-                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 bg-white rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Mật khẩu
-              </label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu"
-                disabled={loading}
-                className="w-full text-sm px-3.5 py-2.5 border border-slate-200 bg-white rounded-xl focus:border-emerald-700 focus:outline-hidden disabled:bg-slate-50 disabled:text-slate-500 transition"
-              />
-            </div>
-
-            <button
-              type="submit"
+            <Input
+              label="Tên đăng nhập"
+              type="text"
+              autoComplete="username"
+              autoFocus
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Nhập username"
               disabled={loading}
-              className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:bg-emerald-800/70 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition text-sm flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Đang đăng nhập...</span>
-                </>
-              ) : (
-                <>
-                  <span>Đăng nhập</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              required
+            />
+
+            <Input
+              label="Mật khẩu"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Nhập mật khẩu"
+              disabled={loading}
+              required
+            />
+
+            <div className="pt-2">
+              <Button
+                type="submit"
+                variant="primary"
+                fullWidth
+                disabled={loading}
+                className="rounded-xl py-3 text-sm"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Đang xác thực...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Đăng nhập</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </div>
           </form>
 
-          <div className="pt-2 text-center text-xs text-slate-500 border-t border-slate-100 space-y-2">
+          <div className="pt-3 text-center text-xs text-ink-500 border-t border-ink-100 space-y-2">
             <div>
               Chưa có tài khoản phụ huynh?{' '}
-              <Link to="/register/parent" className="font-bold text-emerald-800 hover:underline">
+              <Link to="/register/parent" className="font-semibold text-brand-700 hover:text-brand-800 hover:underline">
                 Đăng ký Phụ huynh
               </Link>
             </div>
             <div>
-              Bạn muốn trở thành gia sư VietTutor?{' '}
-              <Link to="/apply" className="font-bold text-emerald-800 hover:underline">
+              Bạn muốn ứng tuyển gia sư?{' '}
+              <Link to="/apply" className="font-semibold text-brand-700 hover:text-brand-800 hover:underline">
                 Đăng ký làm Gia sư
               </Link>
             </div>
           </div>
 
-          <div className="text-center text-xs text-slate-400">
-            Quên mật khẩu? Vui lòng liên hệ hotline{' '}
-            <span className="font-semibold text-slate-600">1900 8866</span>
+          <div className="text-center text-xs text-ink-400">
+            Hỗ trợ đăng nhập:{' '}
+            <span className="font-medium text-ink-600">1900 8866</span>
           </div>
         </div>
       </div>
 
       {/* Back to home */}
       <div className="relative z-10 mt-6 text-center">
-        <Link to="/" className="text-xs font-semibold text-white/90 hover:text-white drop-shadow-sm transition">
+        <Link to="/" className="text-xs font-medium text-ink-300 hover:text-white transition">
           ← Về trang chủ
         </Link>
       </div>

@@ -135,21 +135,53 @@ export const adminService = {
   // 3. THỐNG KÊ TỔNG QUAN DATABASE
   // ============================================
   async getStats() {
-    const [users, dispatches, departments, roles, permissions] = await Promise.all([
+    const [
+      totalUsers,
+      totalTutors,
+      totalParents,
+      pendingApplicants,
+      openRequests,
+      criticalCare,
+    ] = await Promise.all([
       prisma.user.count({ where: { deletedAt: null } }),
-      prisma.dispatch.count({ where: { deletedAt: null } }),
-      prisma.department.count({ where: { active: true } }),
-      prisma.role.count(),
-      prisma.permission.count(),
+      prisma.user.count({
+        where: {
+          deletedAt: null,
+          OR: [
+            { userType: 'TUTOR' },
+            { userRoles: { some: { role: { code: { in: ['TUTOR', 'APPLICANT'] } } } } },
+          ],
+        },
+      }),
+      prisma.user.count({
+        where: {
+          deletedAt: null,
+          OR: [
+            { userType: 'PARENT' },
+            { userRoles: { some: { role: { code: 'PARENT' } } } },
+          ],
+        },
+      }),
+      prisma.tutorApplication.count({
+        where: { status: { in: ['PENDING', 'TESTING', 'TEST_SUBMITTED'] } },
+      }),
+      prisma.classRequest.count({
+        where: { status: { in: ['NEW', 'IN_PROGRESS', 'OFFERING'] } },
+      }),
+      prisma.careCase.count({
+        where: { status: { in: ['OPEN', 'IN_PROGRESS', 'WAITING_RESPONSE'] } },
+      }),
     ]);
 
     return {
       stats: {
-        users,
-        dispatches,
-        departments,
-        roles,
-        permissions,
+        users: totalUsers,
+        totalUsers,
+        totalTutors,
+        totalParents,
+        pendingApplicants,
+        openRequests,
+        criticalCare,
       },
     };
   },

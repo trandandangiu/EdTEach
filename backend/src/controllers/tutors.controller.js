@@ -26,9 +26,20 @@ export const tutorsController = {
         teachingMode = 'BOTH',
         canTeachGroup = false,
         subjectLevelIds = [],
+        location,
+        teachingTime,
       } = req.body;
 
-      const finalUsername = (username || (email ? email.split('@')[0] : `tutor_${Date.now().toString().slice(-6)}`)).trim().toLowerCase();
+      let baseUsername = (username || (email ? email.split('@')[0] : `tutor_${Date.now().toString().slice(-6)}`)).trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+      if (!baseUsername) baseUsername = `tutor_${Date.now().toString().slice(-6)}`;
+      let finalUsername = baseUsername;
+
+      // Đảm bảo username không trùng lặp nếu tự sinh
+      const checkUser = await prisma.user.findUnique({ where: { username: finalUsername } });
+      if (checkUser && !username) {
+        finalUsername = `${baseUsername}_${Math.floor(100 + Math.random() * 900)}`;
+      }
+
       const bcrypt = await import('bcrypt');
       const passwordHash = await bcrypt.hash(password || 'password123', 10);
 
@@ -49,6 +60,7 @@ export const tutorsController = {
               avatarUrl: avatarUrl || null,
               passwordHash,
               userType: 'TUTOR',
+              active: true,
             },
           });
 
@@ -78,6 +90,8 @@ export const tutorsController = {
       const fullBio = [
         req.body.subjects ? `Môn đăng ký: ${Array.isArray(req.body.subjects) ? req.body.subjects.join(', ') : req.body.subjects}` : '',
         customSubjects ? `Môn tự nhập: ${customSubjects}` : '',
+        teachingTime ? `Thời gian rảnh dạy: ${teachingTime}` : '',
+        location ? `Khu vực sinh sống / nhận dạy: ${location}` : '',
         bio
       ].filter(Boolean).join('\n');
 
@@ -92,7 +106,7 @@ export const tutorsController = {
             email,
             dob: dob ? new Date(dob) : null,
             gender,
-            province,
+            province: province || location || null,
             district,
             school,
             major,
@@ -378,6 +392,7 @@ export const tutorsController = {
               },
             },
           },
+          schedules: true,
           lessons: {
             orderBy: { startAt: 'desc' },
           },
@@ -390,6 +405,13 @@ export const tutorsController = {
         const totalLessons = c.sessionsPerWeek ? c.sessionsPerWeek * 12 : 24;
         const completedLessons = c.lessons.filter((l) => l.status === 'CONFIRMED' || l.status === 'REPORTED').length;
 
+        const scheduleText = (c.schedules && c.schedules.length > 0)
+          ? c.schedules.map((s) => {
+              const dayName = s.weekday === 0 ? 'Chủ nhật' : `Thứ ${s.weekday + 1}`;
+              return `${dayName} (${s.startTime} - ${s.endTime})`;
+            }).join(', ')
+          : `${c.sessionsPerWeek || 2} buổi/tuần`;
+
         return {
           id: c.id,
           code: c.code,
@@ -398,7 +420,8 @@ export const tutorsController = {
           parentPhone: firstStudent?.parent?.user?.phone || '',
           subject: c.subjectLevel?.subject?.name || 'Môn học',
           grade: c.subjectLevel?.gradeLevel?.name || 'Tiểu học',
-          schedule: `${c.sessionsPerWeek || 2} buổi/tuần`,
+          schedule: scheduleText,
+          schedules: c.schedules || [],
           totalLessons,
           completedLessons,
           currentProgress: totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0,
@@ -511,6 +534,22 @@ export const tutorsController = {
         });
 
         if (status === 'APPROVED') {
+          // 1. Tự động cấp quyền vai trò TUTOR và kích hoạt tài khoản
+          if (app.userId) {
+            const tutorRole = await tx.role.findUnique({ where: { code: 'TUTOR' } });
+            if (tutorRole) {
+              await tx.userRole.upsert({
+                where: { userId_roleId: { userId: app.userId, roleId: tutorRole.id } },
+                create: { userId: app.userId, roleId: tutorRole.id },
+                update: {},
+              });
+            }
+            await tx.user.update({
+              where: { id: app.userId },
+              data: { active: true, userType: 'TUTOR' },
+            });
+          }
+
           let profile = await tx.tutorProfile.findUnique({ where: { userId: app.userId } });
           if (!profile) {
             profile = await tx.tutorProfile.create({

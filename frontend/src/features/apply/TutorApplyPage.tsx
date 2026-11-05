@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Navbar } from '../../components/layout/Navbar';
 import { Footer } from '../../components/layout/Footer';
-import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { 
   GraduationCap, 
@@ -11,7 +10,6 @@ import {
   Upload,
   AlertCircle,
   Mail,
-  Lock,
   Phone,
   User,
   Sparkles,
@@ -19,8 +17,14 @@ import {
   BookOpen,
   Home,
   Check,
-  FileCheck
+  FileCheck,
+  MapPin,
+  Clock
 } from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 
 const subjectCategories = [
   {
@@ -43,25 +47,25 @@ const subjectCategories = [
 
 export default function TutorApplyPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const [step, setStep] = useState(1);
 
-  // Bước 1: Tài khoản & Thông tin gia sư
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  // Bước 1: Thông tin liên lạc & Ảnh thẻ (Không cần username, password)
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [location, setLocation] = useState(''); // Khu vực sinh sống
   const [avatarPreview, setAvatarPreview] = useState<string>('');
 
-  // Bước 2: Học vấn, môn dạy & thù lao
+  // Bước 2: Học vấn, môn dạy, thù lao, thời gian dạy & khu vực nhận dạy
   const [university, setUniversity] = useState('Đại học Sư Phạm');
   const [major, setMajor] = useState('Sư phạm');
   const [gpa, setGpa] = useState('3.5/4.0');
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>(['Toán Tiểu Học', 'Tiếng Việt']);
   const [customSubjects, setCustomSubjects] = useState('');
   const [hourlyExpectation, setHourlyExpectation] = useState<number>(250000);
+  const [teachingTime, setTeachingTime] = useState('Các buổi tối trong tuần (18h30 - 20h30) & Cuối tuần');
+  const [preferredArea, setPreferredArea] = useState('');
 
   const [submitted, setSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -95,33 +99,30 @@ export default function TutorApplyPage() {
     return Number(num || 0).toLocaleString('vi-VN') + ' đ/buổi';
   };
 
-  // Bước 1 Validation
+  // Bước 1: Validation
   const handleNextStep1 = () => {
     setErrorMsg('');
-    if (!username.trim()) {
-      setErrorMsg('Vui lòng nhập tên đăng nhập.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMsg('Mật khẩu cần tối thiểu 6 ký tự.');
-      return;
-    }
     if (!name.trim()) {
-      setErrorMsg('Vui lòng nhập họ và tên đầy đủ.');
+      setErrorMsg('Vui lòng nhập họ và tên đầy đủ của gia sư.');
       return;
     }
     if (!phone.trim()) {
-      setErrorMsg('Vui lòng nhập số điện thoại.');
+      setErrorMsg('Vui lòng nhập số điện thoại liên lạc.');
       return;
     }
     if (!email.trim() || !email.includes('@')) {
-      setErrorMsg('Vui lòng nhập địa chỉ Gmail hợp lệ.');
+      setErrorMsg('Vui lòng nhập địa chỉ Gmail hợp lệ để nhận bài thi khảo sát chuyên môn.');
       return;
     }
+    if (!location.trim()) {
+      setErrorMsg('Vui lòng nhập khu vực sinh sống hiện tại.');
+      return;
+    }
+
     setStep(2);
   };
 
-  // Bước 2 Validation
+  // Bước 2: Validation
   const handleNextStep2 = () => {
     setErrorMsg('');
     if (selectedSubjects.length === 0 && !customSubjects.trim()) {
@@ -130,6 +131,10 @@ export default function TutorApplyPage() {
     }
     if (!hourlyExpectation || hourlyExpectation < 50000) {
       setErrorMsg('Vui lòng nhập mức thù lao hợp lệ (tối thiểu 50.000 đ/buổi).');
+      return;
+    }
+    if (!teachingTime.trim()) {
+      setErrorMsg('Vui lòng nhập thời gian rảnh có thể dạy.');
       return;
     }
     setStep(3);
@@ -141,35 +146,13 @@ export default function TutorApplyPage() {
     setErrorMsg('');
     setLoading(true);
 
-    const finalUsername = username.trim().toLowerCase();
-
     try {
-      // 1. Tạo tài khoản ứng viên (hoặc update nếu đã có)
-      try {
-        await api.auth.registerApplicant({
-          username: finalUsername,
-          password: password.trim(),
-          fullName: name.trim(),
-          phone: phone.trim(),
-          email: email.trim(),
-          avatarUrl: avatarPreview || undefined,
-          school: university,
-          major,
-          degree: 'Đại học / Cao đẳng',
-          experienceYears: 1,
-          teachingMode: 'BOTH',
-        });
-      } catch (regErr: any) {
-        console.log('Applicant register notice:', regErr?.message);
-      }
-
-      // 2. Gửi đơn ứng tuyển chính thức
       await api.tutors.apply({
-        username: finalUsername,
-        password: password.trim(),
         fullName: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        location: location.trim(),
+        teachingTime: teachingTime.trim(),
         avatarUrl: avatarPreview || undefined,
         school: university,
         major,
@@ -177,17 +160,15 @@ export default function TutorApplyPage() {
         expectedRate: hourlyExpectation,
         subjects: selectedSubjects,
         customSubjects: customSubjects.trim(),
+        province: preferredArea.trim() || location.trim(),
       });
 
-      // 3. Tự động đăng nhập
-      try {
-        await login(finalUsername, password.trim());
-      } catch {
-        // ignore
-      }
-
-      // 4. Hiển thị thông báo thành công (KHÔNG TỰ NHẢY SANG CỔNG TEST)
       setSubmitted(true);
+
+      // Tự động chuyển hướng về trang chủ sau 5 giây theo yêu cầu
+      setTimeout(() => {
+        navigate('/');
+      }, 5000);
     } catch (err: any) {
       console.error('Registration/Apply error:', err);
       setErrorMsg(err?.message || 'Không thể hoàn thành đơn ứng tuyển. Vui lòng kiểm tra lại thông tin.');
@@ -197,364 +178,311 @@ export default function TutorApplyPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+    <div className="min-h-screen flex flex-col bg-ink-50 text-ink-900 antialiased">
       <Navbar />
 
-      {/* Header Banner */}
-      <div className="bg-emerald-950 text-white py-10 border-b border-emerald-900">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <span className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
-            Gia Nhập Đội Ngũ Gia Sư Chuyên Nghiệp VietTutor
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-            Đăng Ký Hồ Sơ Ứng Tuyển Gia Sư
+      {/* Hero Header Banner */}
+      <section className="relative overflow-hidden bg-white border-b border-ink-200 py-10 lg:py-14">
+        <div className="pointer-events-none absolute -top-24 right-0 w-96 h-96 rounded-full bg-emerald-100/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 left-0 w-80 h-80 rounded-full bg-amber-100/40 blur-3xl" />
+
+        <div className="relative max-w-4xl mx-auto px-5 sm:px-8">
+          <div className="inline-flex items-center gap-2 rounded-full bg-brand-50 border border-brand-100 px-3.5 py-1 text-xs font-semibold text-brand-700 shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            Tuyển dụng gia sư tiêu chuẩn sư phạm VietTutor
+          </div>
+
+          <h1 className="mt-3 text-3xl sm:text-4xl font-semibold tracking-tight text-ink-900">
+            Đăng Ký Hồ Sơ{' '}
+            <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              Ứng Tuyển Gia Sư
+            </span>
           </h1>
-          <p className="text-xs text-emerald-200 mt-1">
-            Kết nối cùng hàng nghìn học sinh & phụ huynh tin cậy với mức thù lao xứng đáng
+          <p className="mt-2 text-xs sm:text-sm text-ink-500 max-w-xl leading-relaxed">
+            Điền hồ sơ thông tin và chuyên môn giảng dạy. Ban Tuyển Dụng sẽ tiếp nhận, gửi đề khảo sát và tự động cấp tài khoản khi hồ sơ được duyệt.
           </p>
 
           {/* Stepper Progress */}
-          <div className="grid grid-cols-3 gap-2 mt-6 pt-4 border-t border-emerald-900 text-xs">
-            <div className={`p-2.5 rounded-xl border flex items-center gap-2 transition ${step >= 1 ? 'border-emerald-400 bg-emerald-900/70 text-white font-bold' : 'border-emerald-900 text-emerald-300'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 1 ? 'bg-emerald-400 text-emerald-950' : 'bg-emerald-700 text-white'}`}>
-                {step > 1 ? '✓' : '1'}
+          <div className="grid grid-cols-3 gap-3 mt-6 pt-5 border-t border-ink-100 text-xs">
+            <div className={`p-3 rounded-2xl border flex items-center gap-2.5 transition ${
+              step >= 1 ? 'border-brand-500 bg-brand-50/50 text-brand-900 font-semibold' : 'border-ink-200 text-ink-400'
+            }`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                step >= 1 ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-600'
+              }`}>
+                1
               </span>
-              <span>1. Thông tin cá nhân & Ảnh thẻ</span>
+              <span className="hidden sm:inline">1. Thông tin cá nhân</span>
+              <span className="sm:hidden">1. Thông tin</span>
             </div>
-            <div className={`p-2.5 rounded-xl border flex items-center gap-2 transition ${step >= 2 ? 'border-emerald-400 bg-emerald-900/70 text-white font-bold' : 'border-emerald-900 text-emerald-300'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${step > 2 ? 'bg-emerald-400 text-emerald-950' : 'bg-emerald-700 text-white'}`}>
-                {step > 2 ? '✓' : '2'}
+
+            <div className={`p-3 rounded-2xl border flex items-center gap-2.5 transition ${
+              step >= 2 ? 'border-brand-500 bg-brand-50/50 text-brand-900 font-semibold' : 'border-ink-200 text-ink-400'
+            }`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                step >= 2 ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-600'
+              }`}>
+                2
               </span>
-              <span>2. Chuyên môn & Thù lao</span>
+              <span className="hidden sm:inline">2. Môn dạy & Thù lao</span>
+              <span className="sm:hidden">2. Chuyên môn</span>
             </div>
-            <div className={`p-2.5 rounded-xl border flex items-center gap-2 transition ${step >= 3 ? 'border-emerald-400 bg-emerald-900/70 text-white font-bold' : 'border-emerald-900 text-emerald-300'}`}>
-              <span className="w-5 h-5 rounded-full bg-emerald-700 flex items-center justify-center text-[10px] text-white">3</span>
-              <span>3. Xác nhận & Chờ duyệt</span>
+
+            <div className={`p-3 rounded-2xl border flex items-center gap-2.5 transition ${
+              step >= 3 ? 'border-brand-500 bg-brand-50/50 text-brand-900 font-semibold' : 'border-ink-200 text-ink-400'
+            }`}>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                step === 3 ? 'bg-brand-600 text-white' : 'bg-ink-200 text-ink-600'
+              }`}>
+                3
+              </span>
+              <span className="hidden sm:inline">3. Xác nhận hồ sơ</span>
+              <span className="sm:hidden">3. Xác nhận</span>
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+      {/* Form Content */}
+      <div className="max-w-4xl mx-auto px-5 sm:px-8 py-10 flex-1 w-full">
+        <Card variant="static" padding="lg" className="shadow-lg shadow-ink-200/50">
           {errorMsg && (
-            <div className="mb-5 p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-medium flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-danger-600 text-xs rounded-2xl font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {submitted ? (
-            /* MÀN HÌNH SAU KHI NỘP: THÔNG BÁO CHỜ DUYỆT ĐỂ BƯỚC TIẾP TỚI THI */
+            /* Submission Success Screen */
             <div className="py-10 text-center space-y-4 max-w-xl mx-auto">
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto text-3xl font-extrabold shadow-inner">
+              <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto text-3xl font-semibold border border-brand-200 shadow-xs">
                 ✓
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-900">
+              <h2 className="text-2xl font-semibold tracking-tight text-ink-900">
                 Hồ sơ ứng tuyển gia sư đã được gửi thành công!
               </h2>
-              <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-5 text-left text-xs text-slate-700 space-y-3">
-                <div className="font-bold text-emerald-900 text-sm flex items-center gap-2">
-                  <FileCheck className="w-4 h-4 text-emerald-700" />
-                  Quy trình tiếp theo dành cho gia sư:
+              <p className="text-xs text-ink-500">
+                Hệ thống sẽ tự động chuyển hướng về trang chủ sau vài giây...
+              </p>
+
+              <div className="bg-ink-50 border border-ink-200 rounded-2xl p-5 text-left text-xs text-ink-700 space-y-3">
+                <div className="font-semibold text-ink-900 text-sm flex items-center gap-2">
+                  <FileCheck className="w-4 h-4 text-brand-600" />
+                  Quy trình tiếp theo dành cho bạn:
                 </div>
-                <ul className="space-y-2 list-disc list-inside text-slate-600 leading-relaxed">
+                <ul className="space-y-2 list-disc list-inside text-ink-600 leading-relaxed">
                   <li>
-                    <strong>Bước 1 (Đã hoàn tất):</strong> Ban Tuyển Dụng VietTutor đang tiếp nhận và thẩm định hồ sơ của bạn.
+                    <strong>Bước 1 (Đã hoàn tất):</strong> Ban Tuyển Dụng VietTutor đang tiếp nhận hồ sơ của bạn.
                   </li>
                   <li>
-                    <strong>Bước 2 (Khảo sát chuyên môn):</strong> Khi hồ sơ đạt yêu cầu sơ loại, Admin sẽ tự động gửi email thông báo và <strong>đề thi chuyên môn (dạng file Word hoặc Excel)</strong> tới địa chỉ Gmail <strong>{email}</strong> của bạn.
+                    <strong>Bước 2 (Khảo sát chuyên môn):</strong> Quản trị viên sẽ gửi thông báo và <strong>đề thi chuyên môn (file Word/Excel)</strong> trực tiếp tới Gmail <strong>{email}</strong>.
                   </li>
                   <li>
-                    <strong>Bước 3 (Làm bài & Phỏng vấn):</strong> Bạn tải đề thi từ email về làm bài, sau đó tải bài làm lên hệ thống để Admin kiểm tra và xếp lịch phỏng vấn trước khi nhận lớp.
+                    <strong>Bước 3 (Duyệt & Cấp tài khoản):</strong> Sau khi nộp bài khảo sát và đạt thẩm định, hệ thống sẽ <strong>tự động cấp tài khoản gia sư chính thức</strong> gắn liền với hồ sơ này để bạn bắt đầu nhận lớp.
                   </li>
                 </ul>
-                <div className="text-[11px] text-emerald-800 font-medium bg-emerald-100/60 p-2.5 rounded-xl">
-                  💡 <em>Lưu ý:</em> Vui lòng thường xuyên kiểm tra hộp thư đến (và mục Thư rác/Spam) của Gmail <strong>{email}</strong> để không bỏ lỡ thông báo thi từ trung tâm.
+                <div className="text-[11px] text-brand-800 font-medium bg-brand-50 p-3 rounded-xl border border-brand-100">
+                  💡 <em>Lưu ý:</em> Vui lòng theo dõi hộp thư đến (và thư mục Spam) của Gmail <strong>{email}</strong> để nhận hướng dẫn và đề thi.
                 </div>
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-                <Link
-                  to="/"
-                  className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-xs"
-                >
+              <div className="pt-4 flex justify-center">
+                <Button variant="primary" size="md" onClick={() => navigate('/')}>
                   <Home className="w-4 h-4" />
-                  <span>Về trang chủ</span>
-                </Link>
-                <Link
-                  to="/tutor/dashboard"
-                  className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2"
-                >
-                  <User className="w-4 h-4" />
-                  <span>Vào cổng Gia Sư</span>
-                </Link>
+                  <span>Quay về trang chủ ngay</span>
+                </Button>
               </div>
             </div>
           ) : (
             <div>
-              {/* ======================================================== */}
-              {/* BƯỚC 1: TÊN ĐĂNG NHẬP, MẬT KHẨU, HỌ TÊN, SĐT, GMAIL & ẢNH THẺ */}
-              {/* ======================================================== */}
+              {/* STEP 1: Personal Info & Photo (Không cần username, password) */}
               {step === 1 && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Bước 1: Tài khoản, Thông tin liên hệ & Ảnh thẻ 3x4
+                    <h2 className="text-lg font-semibold tracking-tight text-ink-900">
+                      Bước 1: Thông tin liên lạc & Ảnh thẻ gia sư
                     </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Điền chính xác các thông tin định danh để tạo tài khoản gia sư (không yêu cầu OTP xác nhận).
+                    <p className="text-xs text-ink-500 mt-1">
+                      Cung cấp họ tên đầy đủ, số điện thoại, Gmail chính xác và khu vực sinh sống. Tài khoản đăng nhập sẽ được cấp tự động sau khi duyệt hồ sơ.
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                    {/* Cột Upload ảnh thẻ 3x4 */}
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-700">
-                        Ảnh thẻ gia sư (3x4) *
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Họ tên */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-ink-700 mb-1.5">
+                        Họ và tên đầy đủ gia sư *
                       </label>
-                      <div className="border-2 border-dashed border-emerald-300 hover:border-emerald-600 rounded-2xl p-4 text-center bg-emerald-50/30 flex flex-col items-center justify-center transition min-h-[220px]">
-                        {avatarPreview ? (
-                          <div className="relative group w-32 h-40 rounded-xl overflow-hidden shadow-md border border-slate-200 bg-white">
-                            <img
-                              src={avatarPreview}
-                              alt="Ảnh thẻ 3x4"
-                              className="w-full h-full object-cover"
-                            />
-                            <label
-                              htmlFor="photo-upload"
-                              className="absolute inset-0 bg-black/50 text-white text-[11px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                            >
-                              Đổi ảnh khác
-                            </label>
-                          </div>
-                        ) : (
-                          <label
-                            htmlFor="photo-upload"
-                            className="cursor-pointer flex flex-col items-center justify-center w-full h-full py-4"
-                          >
-                            <div className="w-14 h-18 border-2 border-dashed border-emerald-400 rounded-lg flex items-center justify-center bg-white text-emerald-700 mb-2">
-                              <Upload className="w-6 h-6" />
-                            </div>
-                            <span className="text-xs font-bold text-emerald-900">Chọn ảnh thẻ 3x4</span>
-                            <span className="text-[10px] text-slate-400 mt-1">Hỗ trợ JPG, PNG (tối đa 5MB)</span>
-                          </label>
-                        )}
-                        <input
-                          id="photo-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
-                      </div>
-                      <span className="text-[10px] text-slate-400 block text-center">
-                        Ảnh thẻ nghiêm túc, nhìn rõ mặt để in vào hồ sơ tuyển dụng
-                      </span>
+                      <Input
+                        type="text"
+                        required
+                        placeholder="VD: Nguyễn Thị Mai Linh"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                      />
                     </div>
 
-                    {/* Cột các trường nhập thông tin */}
-                    <div className="md:col-span-2 space-y-4">
-                      {/* Tên đăng nhập & Mật khẩu */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            Tên đăng nhập *
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="text"
-                              required
-                              placeholder="Ví dụ: giasutrang99"
-                              value={username}
-                              onChange={(e) => setUsername(e.target.value)}
-                              className="w-full text-xs px-3.5 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                            />
-                            <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                          </div>
-                        </div>
+                    {/* SĐT */}
+                    <div>
+                      <label className="block text-xs font-semibold text-ink-700 mb-1.5">
+                        Số điện thoại liên lạc *
+                      </label>
+                      <Input
+                        type="tel"
+                        required
+                        placeholder="VD: 0912345678"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                      />
+                    </div>
 
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            Mật khẩu tài khoản *
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="password"
-                              required
-                              placeholder="Tối thiểu 6 ký tự"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
-                              className="w-full text-xs px-3.5 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                            />
-                            <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                          </div>
-                        </div>
+                    {/* Gmail */}
+                    <div>
+                      <label className="block text-xs font-semibold text-ink-700 mb-1.5">
+                        Địa chỉ Gmail (nhận đề thi chuyên môn) *
+                      </label>
+                      <Input
+                        type="email"
+                        required
+                        placeholder="VD: mailinh.edu@gmail.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                      />
+                    </div>
+
+                    {/* Khu vực sinh sống */}
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-semibold text-ink-700 mb-1.5 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Khu vực sinh sống hiện tại *</span>
+                      </label>
+                      <Input
+                        type="text"
+                        required
+                        placeholder="VD: Quận Cầu Giấy, Hà Nội hoặc Quận 10, TP. Hồ Chí Minh"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                      />
+                      <span className="text-[11px] text-ink-400 mt-1 block">
+                        Khu vực này giúp hệ thống ghép nối các lớp học gia sư gần nơi bạn sinh sống nhất.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Upload Ảnh thẻ 3x4 */}
+                  <div className="pt-4 border-t border-ink-100">
+                    <label className="block text-xs font-semibold text-ink-700 mb-2">
+                      Ảnh thẻ chân dung 3x4 (Khuyến khích trang phục lịch sự, phông nền sáng)
+                    </label>
+                    <div className="flex flex-col sm:flex-row items-center gap-5">
+                      <div className="w-24 h-32 rounded-2xl border-2 border-dashed border-ink-200 bg-ink-50 overflow-hidden flex items-center justify-center shrink-0">
+                        {avatarPreview ? (
+                          <img src={avatarPreview} alt="Ảnh thẻ preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[11px] text-ink-400 text-center px-2">Ảnh 3x4</span>
+                        )}
                       </div>
 
-                      {/* Họ tên đầy đủ */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Họ và tên đầy đủ của gia sư *
-                        </label>
+                      <div className="space-y-2 text-center sm:text-left flex-1">
                         <input
-                          type="text"
-                          required
-                          placeholder="Ví dụ: Trần Thị Thu Trang"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          className="w-full text-xs px-3.5 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden font-medium"
+                          type="file"
+                          accept="image/*"
+                          id="avatar-file-input"
+                          className="hidden"
+                          onChange={handlePhotoUpload}
                         />
-                      </div>
-
-                      {/* Số điện thoại & Gmail */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            Số điện thoại liên hệ *
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="tel"
-                              required
-                              placeholder="0987 654 321"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              className="w-full text-xs px-3.5 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                            />
-                            <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-1">
-                            Địa chỉ Gmail (nhận đề thi) *
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="email"
-                              required
-                              placeholder="giasu@gmail.com"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="w-full text-xs px-3.5 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                            />
-                            <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                          </div>
-                          <span className="text-[10px] text-slate-400 mt-1 block">
-                            Đề thi Word/Excel sẽ được gửi trực tiếp tới hòm thư này.
-                          </span>
-                        </div>
+                        <label
+                          htmlFor="avatar-file-input"
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-ink-100 hover:bg-ink-200 text-ink-800 text-xs font-semibold rounded-xl cursor-pointer transition"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Tải ảnh từ máy tính</span>
+                        </label>
+                        <p className="text-[11px] text-ink-400">
+                          Hỗ trợ JPG, PNG (tối đa 5MB). Ảnh thẻ sẽ hiển thị trên hồ sơ gia sư uy tín gửi tới phụ huynh.
+                        </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-xs text-slate-500">
-                      Đã có tài khoản gia sư?{' '}
-                      <Link to="/login" className="font-bold text-emerald-800 hover:underline">
-                        Đăng nhập ngay
-                      </Link>
-                    </span>
-
-                    <button
-                      type="button"
-                      onClick={handleNextStep1}
-                      className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition"
-                    >
+                  <div className="pt-4 border-t border-ink-100 flex justify-end">
+                    <Button type="button" variant="primary" onClick={handleNextStep1}>
                       <span>Tiếp tục: Môn dạy & Thù lao</span>
                       <ArrowRight className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
 
-              {/* ======================================================== */}
-              {/* BƯỚC 2: HỌC VẤN, MÔN DẠY (CÁC CATEGORY + Ô NHẬP TEXT) & THÙ LAO VNĐ */}
-              {/* ======================================================== */}
+              {/* STEP 2: Academic, Subjects, Expected Rate, Teaching Time & Preferred Area */}
               {step === 2 && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      Bước 2: Các môn nhận dạy kèm & Mức thù lao mong muốn
+                    <h2 className="text-lg font-semibold tracking-tight text-ink-900">
+                      Bước 2: Môn nhận dạy kèm, Thù lao & Thời gian dạy
                     </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Chọn các môn theo danh mục, nhập thêm môn nếu cần, và đề xuất thù lao dạy kèm.
+                    <p className="text-xs text-ink-500 mt-1">
+                      Chọn các môn bạn có thể giảng dạy, thiết lập mức thù lao mong muốn và khung thời gian rảnh.
                     </p>
                   </div>
 
-                  {/* Học vấn cơ bản */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                  {/* Học vấn */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Trường Đại học *
-                      </label>
-                      <input
+                      <label className="block text-xs font-semibold text-ink-700 mb-1">Trường ĐH / Cao đẳng</label>
+                      <Input
                         type="text"
-                        required
                         value={university}
                         onChange={(e) => setUniversity(e.target.value)}
-                        className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
+                        placeholder="Đại học Sư phạm..."
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Chuyên ngành *
-                      </label>
-                      <input
+                      <label className="block text-xs font-semibold text-ink-700 mb-1">Chuyên ngành đào tạo</label>
+                      <Input
                         type="text"
-                        required
                         value={major}
                         onChange={(e) => setMajor(e.target.value)}
-                        className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
+                        placeholder="Sư phạm Toán, Ngoại ngữ..."
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Điểm GPA / Học lực
-                      </label>
-                      <input
+                      <label className="block text-xs font-semibold text-ink-700 mb-1">Điểm GPA / Học lực</label>
+                      <Input
                         type="text"
                         value={gpa}
                         onChange={(e) => setGpa(e.target.value)}
-                        className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
+                        placeholder="3.5/4.0 hoặc Giỏi..."
                       />
                     </div>
                   </div>
 
-                  {/* CÁC MÔN NHẬN DẠY THEO CATEGORY */}
-                  <div className="space-y-4">
-                    <label className="block text-xs font-bold text-slate-800">
-                      Chọn các môn nhận dạy kèm theo nhóm:
+                  {/* Danh mục Môn học */}
+                  <div className="space-y-4 pt-2">
+                    <label className="block text-xs font-semibold text-ink-900">
+                      Chọn các môn bạn nhận dạy kèm: *
                     </label>
 
-                    <div className="space-y-3">
-                      {subjectCategories.map((cat, idx) => (
-                        <div key={idx} className="p-3.5 border border-slate-200 rounded-2xl bg-white space-y-2">
-                          <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
-                            <BookOpen className="w-3.5 h-3.5 text-emerald-700" />
-                            {cat.category}
-                          </span>
+                    <div className="space-y-4">
+                      {subjectCategories.map((group, idx) => (
+                        <div key={idx} className="bg-ink-50/70 p-4 rounded-2xl border border-ink-200/80 space-y-2.5">
+                          <span className="text-xs font-semibold text-brand-900 block">{group.category}</span>
                           <div className="flex flex-wrap gap-2">
-                            {cat.subjects.map((sub) => {
+                            {group.subjects.map((sub, sIdx) => {
                               const active = selectedSubjects.includes(sub);
                               return (
                                 <button
-                                  key={sub}
                                   type="button"
+                                  key={sIdx}
                                   onClick={() => toggleSubject(sub)}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition border flex items-center gap-1.5 ${
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition cursor-pointer flex items-center gap-1.5 ${
                                     active
-                                      ? 'border-emerald-700 bg-emerald-50 text-emerald-950 font-bold shadow-xs'
-                                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                                      ? 'bg-brand-600 text-white border-brand-600 shadow-2xs font-semibold'
+                                      : 'bg-white text-ink-700 border-ink-200 hover:border-ink-300'
                                   }`}
                                 >
-                                  {active ? (
-                                    <Check className="w-3.5 h-3.5 text-emerald-700" />
-                                  ) : (
-                                    <span className="text-slate-400">+</span>
-                                  )}
+                                  {active && <Check className="w-3 h-3 stroke-[3]" />}
                                   <span>{sub}</span>
                                 </button>
                               );
@@ -564,194 +492,187 @@ export default function TutorApplyPage() {
                       ))}
                     </div>
 
-                    {/* Ô NHẬP TEXT TỰ DO CHO MÔN KHÁC */}
-                    <div className="p-3.5 border border-dashed border-emerald-300 rounded-2xl bg-emerald-50/40 space-y-1.5">
-                      <label className="block text-xs font-bold text-emerald-950">
-                        Ô nhập text: Môn hoặc kỹ năng đặc thù khác (nếu có)
+                    {/* Ô nhập môn tự do */}
+                    <div>
+                      <label className="block text-xs font-semibold text-ink-700 mb-1">
+                        Môn hoặc kỹ năng khác muốn dạy (nhập tự do):
                       </label>
-                      <input
+                      <Input
                         type="text"
-                        placeholder="Ví dụ: Luyện chữ đẹp, Bồi dưỡng học sinh giỏi Toán cấp huyện, Toán song ngữ Singapore..."
+                        placeholder="VD: Cờ vua nâng cao, Luyện thi HSG Tỉnh, Tiếng Trung HSK3..."
                         value={customSubjects}
                         onChange={(e) => setCustomSubjects(e.target.value)}
-                        className="w-full text-xs px-3.5 py-2.5 border border-emerald-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
                       />
-                      <span className="text-[10px] text-slate-500">
-                        Bạn có thể gõ thêm các môn học, cấp lớp hoặc chứng chỉ chuyên sâu mà danh mục trên chưa liệt kê.
+                    </div>
+                  </div>
+
+                  {/* Thù lao mong muốn & Thời gian dạy (Bên cạnh nhau) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-ink-100">
+                    {/* Ô Thù lao */}
+                    <div>
+                      <label className="block text-xs font-semibold text-ink-700 mb-1 flex items-center justify-between">
+                        <span>Mức thù lao mong muốn *</span>
+                        <span className="text-brand-700 font-bold">{formatVND(hourlyExpectation)}</span>
+                      </label>
+                      <Input
+                        type="number"
+                        step={10000}
+                        min={50000}
+                        value={hourlyExpectation}
+                        onChange={(e) => setHourlyExpectation(Number(e.target.value))}
+                        placeholder="250000"
+                      />
+                      <span className="text-[11px] text-ink-400 mt-1 block">
+                        Đơn vị: VNĐ / buổi (1 buổi kéo dài 90 - 120 phút).
+                      </span>
+                    </div>
+
+                    {/* Ô Thời gian dạy */}
+                    <div>
+                      <label className="block text-xs font-semibold text-ink-700 mb-1 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Thời gian có thể dạy *</span>
+                      </label>
+                      <Input
+                        type="text"
+                        required
+                        value={teachingTime}
+                        onChange={(e) => setTeachingTime(e.target.value)}
+                        placeholder="VD: Tối 2-4-6 (18h-20h), Thứ 7 & CN"
+                      />
+                      <span className="text-[11px] text-ink-400 mt-1 block">
+                        Khung giờ hoặc các buổi bạn có thể nhận dạy kèm.
                       </span>
                     </div>
                   </div>
 
-                  {/* MỨC THÙ LAO MONG MUỐN THỂ HIỆN DẠNG VNĐ 000,000 */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-800">
-                          Mức thù lao mong muốn (VNĐ / buổi dạy) *
-                        </label>
-                        <span className="text-[11px] text-slate-500">
-                          Đề xuất mức học phí cho 1 buổi dạy kèm (khoảng 90 - 120 phút).
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-lg font-black text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-xl">
-                          {formatVND(hourlyExpectation)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step={10000}
-                        min={50000}
-                        max={2000000}
-                        value={hourlyExpectation}
-                        onChange={(e) => setHourlyExpectation(Number(e.target.value))}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-2.5 pl-9 border border-slate-300 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
-                      />
-                      <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <span className="text-[11px] text-slate-400 self-center">Gợi ý nhanh:</span>
-                      {[150000, 200000, 250000, 300000, 400000, 500000].map((rate) => (
-                        <button
-                          key={rate}
-                          type="button"
-                          onClick={() => setHourlyExpectation(rate)}
-                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition ${
-                            hourlyExpectation === rate
-                              ? 'border-emerald-700 bg-emerald-800 text-white font-bold'
-                              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                          }`}
-                        >
-                          {rate.toLocaleString('vi-VN')} đ
-                        </button>
-                      ))}
-                    </div>
+                  {/* Khu vực nhận dạy thêm (nếu có ưu tiên) */}
+                  <div>
+                    <label className="block text-xs font-semibold text-ink-700 mb-1 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-brand-600" />
+                      <span>Khu vực ưu tiên nhận lớp dạy kèm:</span>
+                    </label>
+                    <Input
+                      type="text"
+                      value={preferredArea}
+                      onChange={(e) => setPreferredArea(e.target.value)}
+                      placeholder={`Mặc định: ${location || 'Toàn thành phố / Dạy Online'}`}
+                    />
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setStep(1)}
-                      className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl transition"
-                    >
+                  <div className="pt-4 border-t border-ink-100 flex justify-between">
+                    <Button type="button" variant="outline" onClick={() => setStep(1)}>
                       Quay lại Bước 1
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNextStep2}
-                      className="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition"
-                    >
+                    </Button>
+                    <Button type="button" variant="primary" onClick={handleNextStep2}>
                       <span>Tiếp tục: Xác nhận hồ sơ</span>
                       <ArrowRight className="w-4 h-4" />
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
 
-              {/* ======================================================== */}
-              {/* BƯỚC 3: XÁC NHẬN THÔNG TIN & NỘP ĐƠN (CHỜ ADMIN DUYỆT THI) */}
-              {/* ======================================================== */}
+              {/* STEP 3: Confirm & Submit */}
               {step === 3 && (
                 <div className="space-y-6">
                   <div>
-                    <h2 className="text-lg font-bold text-slate-900">
+                    <h2 className="text-lg font-semibold tracking-tight text-ink-900">
                       Bước 3: Xác nhận toàn bộ thông tin đăng ký
                     </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Kiểm tra lại hồ sơ trước khi nộp. Sau khi nộp, hồ sơ sẽ được Admin thẩm định và gửi đề thi khảo sát chuyên môn qua Gmail.
+                    <p className="text-xs text-ink-500 mt-1">
+                      Kiểm tra lại hồ sơ trước khi nộp. Sau khi nộp đơn, bạn đợi thông báo đạt để bước tiếp tới chức năng thi trực tuyến; không cần nhảy qua cổng test ngay.
                     </p>
                   </div>
 
-                  {/* THẺ TỔNG HỢP HỒ SƠ CHI TIẾT */}
-                  <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-slate-200">
+                  {/* Summary Card */}
+                  <div className="p-6 bg-ink-50 rounded-2xl border border-ink-200/80 space-y-4">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 pb-4 border-b border-ink-200/60">
                       {avatarPreview ? (
                         <img
                           src={avatarPreview}
                           alt="Ảnh thẻ"
-                          className="w-20 h-24 object-cover rounded-xl border border-slate-200 shadow-xs shrink-0"
+                          className="w-20 h-24 object-cover rounded-xl border border-ink-200 shadow-2xs shrink-0"
                         />
                       ) : (
-                        <div className="w-20 h-24 bg-slate-200 text-slate-400 rounded-xl flex items-center justify-center text-xs font-bold shrink-0">
+                        <div className="w-20 h-24 bg-ink-200 text-ink-400 rounded-xl flex items-center justify-center text-xs font-semibold shrink-0">
                           Chưa có ảnh
                         </div>
                       )}
                       <div className="space-y-1 text-center sm:text-left flex-1">
-                        <div className="text-base font-extrabold text-slate-900">{name}</div>
-                        <div className="text-xs text-slate-500">
-                          Tên đăng nhập: <strong className="text-slate-700">{username}</strong>
+                        <div className="text-base font-semibold text-ink-900">{name}</div>
+                        <div className="text-xs text-ink-500 flex items-center gap-1.5 justify-center sm:justify-start">
+                          <MapPin className="w-3.5 h-3.5 text-brand-600" />
+                          <span>Khu vực sinh sống: <strong>{location}</strong></span>
                         </div>
-                        <div className="text-xs text-slate-600 flex flex-wrap gap-x-4 gap-y-1 pt-1 justify-center sm:justify-start">
+                        <div className="text-xs text-ink-600 flex flex-wrap gap-x-4 gap-y-1 pt-1 justify-center sm:justify-start">
                           <span>📧 Gmail: <strong>{email}</strong></span>
                           <span>📞 SĐT: <strong>{phone}</strong></span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      <div className="bg-white p-3 rounded-xl border border-slate-200">
-                        <span className="text-slate-400 block text-[11px]">Trường & Chuyên ngành</span>
-                        <span className="font-bold text-slate-800">{university}</span>
-                        <span className="text-slate-600 block mt-0.5">{major} (GPA: {gpa})</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="bg-white p-3.5 rounded-xl border border-ink-200">
+                        <span className="text-ink-400 block text-[11px]">Trường & Chuyên ngành:</span>
+                        <span className="font-semibold text-ink-900">{university}</span>
+                        <span className="text-ink-500 block mt-0.5">{major} (GPA: {gpa})</span>
                       </div>
 
-                      <div className="bg-white p-3 rounded-xl border border-slate-200">
-                        <span className="text-slate-400 block text-[11px]">Mức thù lao mong muốn</span>
-                        <span className="font-extrabold text-emerald-800 text-sm block">
+                      <div className="bg-white p-3.5 rounded-xl border border-ink-200">
+                        <span className="text-ink-400 block text-[11px]">Thù lao mong muốn:</span>
+                        <span className="font-semibold text-brand-700 text-sm block">
                           {formatVND(hourlyExpectation)}
+                        </span>
+                      </div>
+
+                      <div className="bg-white p-3.5 rounded-xl border border-ink-200">
+                        <span className="text-ink-400 block text-[11px]">Thời gian rảnh dạy:</span>
+                        <span className="font-semibold text-ink-900 text-xs block leading-tight">
+                          {teachingTime}
                         </span>
                       </div>
                     </div>
 
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
-                      <span className="text-slate-400 block text-[11px]">Các môn nhận dạy kèm:</span>
+                    <div className="bg-white p-4 rounded-xl border border-ink-200 text-xs space-y-2">
+                      <span className="text-ink-400 block text-[11px]">Môn đăng ký giảng dạy:</span>
                       <div className="flex flex-wrap gap-1.5">
                         {selectedSubjects.map((sub, i) => (
                           <span
                             key={i}
-                            className="bg-emerald-50 text-emerald-900 border border-emerald-200 font-medium px-2 py-0.5 rounded-lg text-[11px]"
+                            className="bg-brand-50 text-brand-900 border border-brand-100 font-medium px-2.5 py-1 rounded-lg text-xs"
                           >
                             ✓ {sub}
                           </span>
                         ))}
                       </div>
                       {customSubjects && (
-                        <div className="pt-1.5 border-t border-slate-100 text-slate-700">
-                          <span className="font-semibold text-slate-900">Môn tự nhập: </span>
+                        <div className="pt-2 border-t border-ink-100 text-ink-700">
+                          <span className="font-semibold text-ink-900">Môn tự nhập: </span>
                           <span className="italic">{customSubjects}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Thông báo cam kết & quy trình tiếp theo */}
-                  <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 text-xs text-emerald-950 space-y-2">
-                    <div className="font-bold flex items-center gap-1.5 text-emerald-900">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                      Quy trình tiếp nhận & khảo sát chuyên môn:
+                  <div className="p-4 bg-brand-50/60 rounded-2xl border border-brand-100 text-xs text-brand-950 space-y-1.5">
+                    <div className="font-semibold flex items-center gap-1.5 text-brand-900">
+                      <CheckCircle2 className="w-4 h-4 text-brand-600" />
+                      Quy trình tiếp nhận & cấp tài khoản:
                     </div>
-                    <p className="text-emerald-900/90 leading-relaxed text-[11px]">
-                      Sau khi bạn bấm <strong>"Xác nhận nộp đơn ứng tuyển"</strong>, thông tin sẽ được gửi đến Ban Tuyển Dụng. Bạn không cần phải thi ngay bây giờ. Bộ phận tuyển dụng sẽ gửi đề thi khảo sát (file Word/Excel) và hướng dẫn làm bài vào hộp thư Gmail <strong>{email}</strong> của bạn khi hồ sơ sơ loại đạt yêu cầu.
+                    <p className="text-ink-600 text-xs leading-relaxed">
+                      Sau khi bấm <strong>"Xác nhận nộp đơn"</strong>, hồ sơ sẽ chuyển về cho Admin. Bạn không cần làm bài kiểm tra ngay. Khi hồ sơ được duyệt và chuyển sang khảo sát chuyên môn, bạn sẽ nhận được email đề thi (file Word/Excel). Sau khi chấm thi đạt và phỏng vấn, Admin sẽ tự động cấp tài khoản đăng nhập gắn liền với hồ sơ của bạn.
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-slate-100 flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setStep(2)}
-                      className="px-5 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold rounded-xl transition"
-                    >
+                  <div className="pt-4 border-t border-ink-100 flex justify-between">
+                    <Button type="button" variant="outline" onClick={() => setStep(2)}>
                       Quay lại Bước 2
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="primary"
                       onClick={handleCompleteApplication}
                       disabled={loading}
-                      className="px-7 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-2 transition"
                     >
                       {loading ? (
                         <>
@@ -764,13 +685,13 @@ export default function TutorApplyPage() {
                           <ArrowRight className="w-4 h-4" />
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       <Footer />

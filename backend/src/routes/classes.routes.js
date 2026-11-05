@@ -7,6 +7,9 @@ import {
   getNextLesson,
   approveClass,
   rejectClass,
+  updateClassSchedule,
+  assignHomework,
+  deleteClass,
 } from '../controllers/classes.controller.js';
 import { authenticate } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/permission.js';
@@ -22,5 +25,8 @@ router.post('/', requirePermission('class:create', 'class:create:own'), createCl
 router.post('/:id/enroll', requirePermission('class:enroll'), enrollStudent);
 router.post('/:id/approve', requirePermission('class:approve', 'classes:edit', 'class_request:manage'), approveClass);
 router.post('/:id/reject', requirePermission('class:reject', 'classes:edit', 'class_request:manage'), rejectClass);
+router.put('/:id/schedules', updateClassSchedule);
+router.post('/:id/tasks', assignHomework);
+router.delete('/:id', deleteClass);
 
 export default router;

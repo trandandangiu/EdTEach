@@ -7,6 +7,7 @@ import {
   updateCareCaseStatus,
   getUnconfirmedLessonReports,
   getCareStats,
+  deleteCareCase,
 } from '../controllers/care.controller.js';
 import { authenticate } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/permission.js';
@@ -26,5 +27,8 @@ router.post('/:id/contacts', requirePermission('care:contact-log'), addContactLo
 
 // Cập nhật trạng thái phiếu
 router.patch('/:id/status', requirePermission('care:handle'), updateCareCaseStatus);
+
+// Xóa phiếu chăm sóc
+router.delete('/:id', requirePermission('care:handle', 'care:manage'), deleteCareCase);
 
 export default router;

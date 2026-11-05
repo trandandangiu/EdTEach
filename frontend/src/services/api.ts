@@ -199,6 +199,18 @@ export const api = {
       return data;
     },
 
+    async checkAvailability(payload: { username?: string; email?: string; phone?: string }) {
+      return request<{
+        success: boolean;
+        available: boolean;
+        checks: { username: boolean; email: boolean; phone: boolean };
+      }>('/api/auth/check-availability', {
+        method: 'POST',
+        body: payload,
+        skipAuthHandler: true,
+      });
+    },
+
     async registerParent(payload: {
       username?: string;
       fullName: string;
@@ -207,6 +219,9 @@ export const api = {
       password?: string;
       province?: string;
       address?: string;
+      children?: Array<{ fullName: string; grade?: string; gradeLevelId?: number }>;
+      childName?: string;
+      childGrade?: string;
     }) {
       return request('/api/auth/register-parent', {
         method: 'POST',
@@ -245,6 +260,28 @@ export const api = {
         method: 'POST',
         body: { email, code },
         skipAuthHandler: true,
+      });
+    },
+
+    async changePassword(payload: { oldPassword?: string; newPassword?: string }) {
+      return request('/api/auth/change-password', {
+        method: 'POST',
+        body: payload,
+      });
+    },
+
+    async updateProfile(payload: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      avatarUrl?: string;
+      location?: string;
+      address?: string;
+      bio?: string;
+    }) {
+      return request('/api/auth/profile', {
+        method: 'PUT',
+        body: payload,
       });
     },
   },
@@ -599,6 +636,22 @@ export const api = {
     async getSuggestions(requestId: string) {
       return request(`/api/class-requests/${requestId}/suggestions`);
     },
+
+    async directMatch(
+      requestId: string,
+      payload: { tutorId: string; feePerSession?: number; classTitle?: string }
+    ) {
+      return request(`/api/class-requests/${requestId}/direct-match`, {
+        method: 'POST',
+        body: payload,
+      });
+    },
+
+    async deleteRequest(requestId: string) {
+      return request(`/api/class-requests/${requestId}`, {
+        method: 'DELETE',
+      });
+    },
   },
 
   // ============================================
@@ -639,6 +692,26 @@ export const api = {
       return request(`/api/classes/${classId}/reject`, {
         method: 'POST',
         body: { rejectReason },
+      });
+    },
+
+    async updateSchedule(classId: string, payload: any) {
+      return request(`/api/classes/${classId}/schedules`, {
+        method: 'PUT',
+        body: payload,
+      });
+    },
+
+    async assignHomework(classId: string, payload: any) {
+      return request(`/api/classes/${classId}/tasks`, {
+        method: 'POST',
+        body: payload,
+      });
+    },
+
+    async deleteClass(classId: string) {
+      return request(`/api/classes/${classId}`, {
+        method: 'DELETE',
       });
     },
   },
@@ -770,6 +843,10 @@ export const api = {
     async getStats(params?: { team?: string }) {
       return request('/api/care-cases/stats', { query: params });
     },
+
+    async deleteCareCase(caseId: string) {
+      return request(`/api/care-cases/${caseId}`, { method: 'DELETE' });
+    },
   },
 
   // ============================================
@@ -876,6 +953,22 @@ export const api = {
       return request('/api/students', { method: 'POST', body: payload });
     },
 
+    async updateStudent(id: string, payload: any) {
+      return request(`/api/students/${id}`, { method: 'PATCH', body: payload });
+    },
+
+    async deleteStudent(id: string) {
+      return request(`/api/students/${id}`, { method: 'DELETE' });
+    },
+
+    async getStudentTasks(id: string) {
+      return request(`/api/students/${id}/tasks`);
+    },
+
+    async getStudentOverview(id: string) {
+      return request(`/api/students/${id}/overview`);
+    },
+
     async setStudentPin(id: string, pin: string) {
       return request(`/api/students/${id}/pin`, {
         method: 'PUT',
@@ -909,39 +1002,29 @@ export const api = {
   // ============================================
   admin: {
     async getStats() {
-      // ⚠️ Workaround — khi backend có endpoint /admin/stats riêng,
-      // thay bằng: return request('/api/admin/stats');
-      const [classesRes, reportsRes, careRes, tutorsRes, studentsRes] =
-        await Promise.all([
-          request('/api/classes').catch(() => ({ data: [] })),
-          request('/api/lesson-reports').catch(() => ({ data: [] })),
-          request('/api/care-cases').catch(() => ({ data: [] })),
-          request('/api/tutors').catch(() => ({ data: [] })),
-          request('/api/students').catch(() => ({ data: [] })),
-        ]);
-
-      const classes = (classesRes as any).data || [];
-      const reports = (reportsRes as any).data || [];
-      const careCases = (careRes as any).data || [];
-      const tutors = (tutorsRes as any).data || [];
-      const students = (studentsRes as any).data || [];
-
-      return {
-        totalClasses: classes.length,
-        activeClasses: classes.filter((c: any) => c.status === 'ACTIVE').length,
-        totalStudents: students.length,
-        totalTutors: tutors.length,
-        pendingReports: reports.filter((r: any) => r.status === 'SUBMITTED')
-          .length,
-        openCareCases: careCases.filter(
-          (c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS'
-        ).length,
-        classes,
-        reports,
-        careCases,
-        tutors,
-        students,
-      };
+      try {
+        const res: any = await request('/api/admin/stats');
+        const s = res?.stats || res;
+        return {
+          totalUsers: s.totalUsers ?? s.users ?? 0,
+          totalTutors: s.totalTutors ?? 0,
+          totalParents: s.totalParents ?? 0,
+          pendingApplicants: s.pendingApplicants ?? 0,
+          openRequests: s.openRequests ?? 0,
+          criticalCare: s.criticalCare ?? 0,
+          ...s,
+        };
+      } catch (err) {
+        console.error('Failed to get admin stats:', err);
+        return {
+          totalUsers: 0,
+          totalTutors: 0,
+          totalParents: 0,
+          pendingApplicants: 0,
+          openRequests: 0,
+          criticalCare: 0,
+        };
+      }
     },
 
     async getUsers(params?: {

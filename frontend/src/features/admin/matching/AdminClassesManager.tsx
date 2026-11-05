@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../../../services/api';
 import { 
   Layers, CheckCircle2, AlertCircle, Clock, BookOpen, Search, 
-  Users, Check, X, UserPlus, Filter, RefreshCw, Loader2 
+  Users, Check, X, UserPlus, Filter, RefreshCw, Loader2, ArrowLeft, Trash2 
 } from 'lucide-react';
 
 interface ClassItem {
@@ -82,6 +83,19 @@ export default function AdminClassesManager() {
     }
   };
 
+  const handleDeleteClass = async (cls: ClassItem) => {
+    const confirmText = `Bạn có chắc chắn muốn XÓA vĩnh viễn lớp học "${cls.code}" (${cls.name || 'Lớp học'})? Toàn bộ lịch học, nhiệm vụ và báo cáo liên quan sẽ bị xóa.`;
+    if (!window.confirm(confirmText)) return;
+
+    try {
+      await api.classes.deleteClass(cls.id);
+      alert(`Đã xóa lớp học ${cls.code} thành công!`);
+      await loadClasses();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi xóa lớp học');
+    }
+  };
+
   const openEnrollModal = async (cls: ClassItem) => {
     setEnrollModalClass(cls);
     setSelectedStudentId('');
@@ -137,6 +151,17 @@ export default function AdminClassesManager() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Top back navigation */}
+      <div>
+        <Link 
+          to="/admin/matching"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-emerald-800 hover:border-emerald-300 font-semibold text-xs shadow-2xs transition"
+        >
+          <ArrowLeft size={14} />
+          <span>Quay lại Danh sách Yêu cầu ghép lớp</span>
+        </Link>
+      </div>
+
       {/* Header */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -145,7 +170,7 @@ export default function AdminClassesManager() {
             Quản Lý & Duyệt Lớp Học Nhóm
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Duyệt các lớp nhóm do gia sư đề xuất, theo dõi sĩ số và xếp học sinh vào các slot còn trống.
+            Duyệt các lớp nhóm do gia sư đề xuất, theo dõi sĩ số thực tế và xếp học sinh vào các slot còn trống.
           </p>
         </div>
 
@@ -161,8 +186,8 @@ export default function AdminClassesManager() {
           </div>
           <button
             onClick={() => loadClasses()}
-            title="Làm mới"
-            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
+            title="Làm mới dữ liệu"
+            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition cursor-pointer"
           >
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
           </button>
@@ -173,7 +198,7 @@ export default function AdminClassesManager() {
       <div className="flex items-center gap-2 text-xs font-bold">
         <button
           onClick={() => setActiveTab('ACTIVE')}
-          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
             activeTab === 'ACTIVE' 
               ? 'bg-emerald-800 text-white shadow-xs' 
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -185,7 +210,7 @@ export default function AdminClassesManager() {
 
         <button
           onClick={() => setActiveTab('PENDING')}
-          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
             activeTab === 'PENDING' 
               ? 'bg-amber-600 text-white shadow-xs' 
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -201,7 +226,7 @@ export default function AdminClassesManager() {
 
         <button
           onClick={() => setActiveTab('OPEN')}
-          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 cursor-pointer ${
             activeTab === 'OPEN' 
               ? 'bg-teal-700 text-white shadow-xs' 
               : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -217,11 +242,11 @@ export default function AdminClassesManager() {
         {loading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400 gap-2">
             <Loader2 className="animate-spin text-emerald-800" size={32} />
-            <p className="text-xs font-bold">Đang tải danh sách lớp học...</p>
+            <p className="text-xs font-bold">Đang tải danh sách lớp học thực tế...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-xs italic">
-            Không tìm thấy lớp học nào trong danh mục này.
+            Không có lớp học nào trong danh mục này.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -250,7 +275,7 @@ export default function AdminClassesManager() {
                         <span className="font-extrabold text-slate-900 text-xs">{cls.name || 'Lớp học'}</span>
                       </td>
                       <td className="p-4">
-                        <span className="font-bold text-slate-900 block">{cls.tutor?.user?.fullName || 'Gia sư'}</span>
+                        <span className="font-bold text-slate-900 block">{cls.tutor?.user?.fullName || 'Chưa phân công'}</span>
                         <span className="text-slate-400 text-[11px]">{cls.tutor?.user?.phone || ''}</span>
                       </td>
                       <td className="p-4 font-medium text-slate-700">
@@ -269,7 +294,7 @@ export default function AdminClassesManager() {
                         </div>
                       </td>
                       <td className="p-4 font-bold text-emerald-800">
-                        {Number(cls.defaultFeePerSession || 250000).toLocaleString('vi-VN')} đ
+                        {Number(cls.defaultFeePerSession || 0).toLocaleString('vi-VN')} đ
                       </td>
                       <td className="p-4">
                         <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
@@ -289,7 +314,7 @@ export default function AdminClassesManager() {
                               <button
                                 onClick={() => handleApproveClass(cls.id)}
                                 title="Phê duyệt lớp"
-                                className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold flex items-center gap-1 shadow-xs"
+                                className="px-2.5 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                               >
                                 <Check size={13} />
                                 <span>Duyệt</span>
@@ -297,7 +322,7 @@ export default function AdminClassesManager() {
                               <button
                                 onClick={() => handleRejectClass(cls.id)}
                                 title="Từ chối lớp"
-                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold flex items-center gap-1 border border-rose-200"
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg font-bold flex items-center gap-1 border border-rose-200 cursor-pointer"
                               >
                                 <X size={13} />
                                 <span>Từ chối</span>
@@ -309,12 +334,21 @@ export default function AdminClassesManager() {
                             <button
                               onClick={() => openEnrollModal(cls)}
                               title="Xếp học sinh vào lớp nhóm này"
-                              className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded-lg font-bold flex items-center gap-1"
+                              className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-200 rounded-lg font-bold flex items-center gap-1 cursor-pointer"
                             >
                               <UserPlus size={13} />
                               <span>Xếp Học Sinh</span>
                             </button>
                           )}
+
+                          {/* Nút Xóa lớp học */}
+                          <button
+                            onClick={() => handleDeleteClass(cls)}
+                            title="Xóa vĩnh viễn lớp học này"
+                            className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -335,7 +369,7 @@ export default function AdminClassesManager() {
                 <UserPlus className="w-5 h-5 text-teal-700" />
                 <h3 className="font-extrabold text-base text-slate-900">Xếp Học Sinh Vào Lớp Nhóm</h3>
               </div>
-              <button onClick={() => setEnrollModalClass(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+              <button onClick={() => setEnrollModalClass(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
             </div>
 
             <p className="text-slate-600">
@@ -349,39 +383,37 @@ export default function AdminClassesManager() {
                   required
                   value={selectedStudentId}
                   onChange={(e) => setSelectedStudentId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-teal-700 focus:outline-hidden font-bold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-teal-700 focus:outline-hidden bg-white"
                 >
-                  <option value="">-- Chọn học sinh từ danh sách --</option>
+                  <option value="">-- Chọn học sinh trong danh sách --</option>
                   {students.map((st) => (
                     <option key={st.id} value={st.id}>
-                      {st.fullName} ({st.gradeLevel?.name || 'Học sinh'}) · Phụ huynh: {st.parent?.user?.fullName || ''}
+                      {st.fullName} ({st.gradeLevel?.name || 'Khối lớp'}) - Phụ huynh: {st.parent?.user?.fullName || 'PH'}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="p-3 bg-teal-50 border border-teal-200 rounded-xl text-teal-900">
-                <span className="font-bold block">Mức phí áp dụng:</span>
-                <span className="text-sm font-black text-emerald-800">
-                  {Number(enrollModalClass.defaultFeePerSession || 250000).toLocaleString('vi-VN')} đ / buổi
-                </span>
+              <div className="p-3 bg-teal-50 border border-teal-100 rounded-xl text-teal-900 space-y-1">
+                <div className="font-bold">Mức học phí theo buổi:</div>
+                <p>{Number(enrollModalClass.defaultFeePerSession || 0).toLocaleString('vi-VN')} đ / buổi</p>
               </div>
 
-              <div className="pt-2 flex justify-end gap-2 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setEnrollModalClass(null)}
-                  className="px-4 py-2 font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  disabled={!selectedStudentId || isEnrolling}
-                  className="px-5 py-2 font-bold bg-teal-700 hover:bg-teal-800 text-white rounded-xl shadow-xs flex items-center gap-1.5"
+                  disabled={isEnrolling}
+                  className="px-4 py-2 bg-teal-800 hover:bg-teal-900 text-white rounded-xl font-bold flex items-center gap-1.5 shadow-xs"
                 >
-                  {isEnrolling ? <Loader2 className="animate-spin" size={14} /> : <UserPlus size={14} />}
-                  <span>Xác Nhận Xếp Lớp</span>
+                  {isEnrolling ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                  <span>Xác nhận xếp lớp</span>
                 </button>
               </div>
             </form>

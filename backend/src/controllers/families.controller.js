@@ -30,7 +30,7 @@ export async function getMyStudents(req, res, next) {
 // Thêm con mới
 export async function createStudent(req, res, next) {
   try {
-    const { fullName, nickname, dob, gender, gradeLevelId, school, avatarKey, pin } = req.body;
+    const { fullName, nickname, dob, age, gender, gradeLevelId, school, avatarKey, pin } = req.body;
 
     if (!fullName || !gradeLevelId) {
       return res.status(400).json({ success: false, message: 'Họ tên và khối lớp là bắt buộc' });
@@ -46,15 +46,22 @@ export async function createStudent(req, res, next) {
       pinHash = await bcrypt.hash(String(pin), 10);
     }
 
+    // Tính ngày sinh nếu người dùng chỉ nhập tuổi
+    let calculatedDob = dob ? new Date(dob) : null;
+    if (!calculatedDob && age) {
+      const currentYear = new Date().getFullYear();
+      calculatedDob = new Date(currentYear - parseInt(age, 10), 0, 1);
+    }
+
     const student = await prisma.studentProfile.create({
       data: {
         parentId: parent.id,
         fullName,
-        nickname,
-        dob: dob ? new Date(dob) : null,
-        gender,
+        nickname: nickname || null,
+        dob: calculatedDob,
+        gender: gender || null,
         gradeLevelId: parseInt(gradeLevelId, 10),
-        school,
+        school: school || null,
         avatarKey: avatarKey || 'kid_default',
         pinHash,
       },
@@ -71,7 +78,7 @@ export async function createStudent(req, res, next) {
 export async function updateStudent(req, res, next) {
   try {
     const { id } = req.params;
-    const { fullName, nickname, dob, gender, gradeLevelId, school, avatarKey } = req.body;
+    const { fullName, nickname, dob, age, gender, gradeLevelId, school, avatarKey } = req.body;
 
     const student = await prisma.studentProfile.findFirst({
       where: { id, parent: { userId: req.user.id } },
@@ -81,12 +88,18 @@ export async function updateStudent(req, res, next) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ học sinh' });
     }
 
+    let calculatedDob = dob !== undefined ? (dob ? new Date(dob) : null) : undefined;
+    if (calculatedDob === undefined && age) {
+      const currentYear = new Date().getFullYear();
+      calculatedDob = new Date(currentYear - parseInt(age, 10), 0, 1);
+    }
+
     const updated = await prisma.studentProfile.update({
       where: { id },
       data: {
         fullName,
         nickname,
-        dob: dob ? new Date(dob) : undefined,
+        dob: calculatedDob,
         gender,
         gradeLevelId: gradeLevelId ? parseInt(gradeLevelId, 10) : undefined,
         school,
@@ -96,6 +109,100 @@ export async function updateStudent(req, res, next) {
     });
 
     res.json({ success: true, data: updated, message: 'Cập nhật thành công' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Xóa hồ sơ con (soft delete)
+export async function deleteStudent(req, res, next) {
+  try {
+    const { id } = req.params;
+    const student = await prisma.studentProfile.findFirst({
+      where: { id, parent: { userId: req.user.id } },
+    });
+
+    if (!student && !req.user.roles.includes('ADMIN')) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ học sinh' });
+    }
+
+    await prisma.studentProfile.update({
+      where: { id },
+      data: { active: false },
+    });
+
+    res.json({ success: true, message: 'Đã xóa hồ sơ con thành công' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Lấy danh sách bài tập về nhà của bé (do gia sư giao)
+export async function getStudentTasks(req, res, next) {
+  try {
+    const { id } = req.params;
+    const student = await prisma.studentProfile.findFirst({
+      where: { id, parent: { userId: req.user.id } },
+    });
+
+    if (!student && !req.user.roles.includes('ADMIN')) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ học sinh' });
+    }
+
+    // Lấy bài tập từ AssignmentTask
+    const tasks = await prisma.assignmentTask.findMany({
+      where: { studentId: id },
+      include: {
+        class: {
+          include: {
+            tutor: { include: { user: true } },
+            subjectLevel: { include: { subject: true } },
+          },
+        },
+        lesson: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Lấy bài tập từ các LessonReport gần nhất
+    const reportsWithHomework = await prisma.lessonReport.findMany({
+      where: {
+        studentId: id,
+        homeworkNote: { not: null },
+      },
+      include: {
+        lesson: {
+          include: {
+            class: {
+              include: {
+                tutor: { include: { user: true } },
+                subjectLevel: { include: { subject: true } },
+              },
+            },
+          },
+        },
+        tutor: { include: { user: true } },
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 10,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        tasks,
+        reportsWithHomework: reportsWithHomework.map((r) => ({
+          id: r.id,
+          lessonId: r.lessonId,
+          lessonContent: r.lessonContent,
+          homeworkNote: r.homeworkNote,
+          tutorName: r.tutor?.user?.fullName || 'Gia sư',
+          subjectName: r.lesson?.class?.subjectLevel?.subject?.name || 'Môn học',
+          submittedAt: r.submittedAt,
+          tutorComment: r.tutorComment,
+        })),
+      },
+    });
   } catch (err) {
     next(err);
   }

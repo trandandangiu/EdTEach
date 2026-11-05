@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+@theme {
+  /* Neutral base — the dominant palette */
+  --color-ink-50:  #f8fafc;   /* slate-50 */
+  --color-ink-100: #f1f5f9;   /* slate-100 */
+  --color-ink-200: #e2e8f0;   /* slate-200 */
+  --color-ink-300: #cbd5e1;   /* slate-300 */
+  --color-ink-400: #94a3b8;   /* slate-400 */
+  --color-ink-500: #64748b;   /* slate-500 */
+  --color-ink-600: #475569;   /* slate-600 */
+  --color-ink-700: #334155;   /* slate-700 */
+  --color-ink-800: #1e293b;   /* slate-800 */
+  --color-ink-900: #0f172a;   /* slate-900 */
+  --color-ink-950: #020617;   /* slate-950 */
+
+  /* Accent — emerald/teal gradient family */
+  --color-brand-50:  #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-500: #10b981;   /* emerald-500 */
+  --color-brand-600: #059669;   /* emerald-600 */
+  --color-brand-700: #047857;   /* emerald-700 */
+  --color-brand-900: #064e3b;
+
+  /* Warm accent — stars, rating, reward only */
+  --color-gold-400: #fbbf24;    /* amber-400 */
+  --color-gold-500: #f59e0b;    /* amber-500 */
+
+  /* Semantic */
+  --color-danger-500: #f43f5e;  /* rose-500 */
+  --color-danger-600: #e11d48;  /* rose-600 */
+  --color-info-500:   #0ea5e9;  /* sky-500 */
+}
+
+/* Base custom styles & resets */
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: #ffffff;
+  color: #0f172a;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for modern calm density */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

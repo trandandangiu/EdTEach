@@ -221,3 +221,24 @@ export async function getCareStats(req, res, next) {
     next(err);
   }
 }
+
+// Xóa phiếu chăm sóc
+export async function deleteCareCase(req, res, next) {
+  try {
+    const { id } = req.params;
+    const careCase = await prisma.careCase.findUnique({ where: { id } });
+    if (!careCase) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy phiếu chăm sóc' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.careContactLog.deleteMany({ where: { caseId: id } });
+      await tx.attachment.deleteMany({ where: { careCaseId: id } });
+      await tx.careCase.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: 'Đã xóa phiếu chăm sóc thành công' });
+  } catch (err) {
+    next(err);
+  }
+}

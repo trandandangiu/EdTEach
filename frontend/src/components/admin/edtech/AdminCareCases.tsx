@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Award,
   TrendingUp,
+  Trash2,
 } from 'lucide-react';
 
 interface CareCaseItem {
@@ -104,6 +105,7 @@ export default function AdminCareCases() {
   const [currentTeam, setCurrentTeam] = useState<string>(defaultTeam);
   const [activeSubTab, setActiveSubTab] = useState<'tickets' | 'unconfirmed' | 'tutors'>('tickets');
   const [cases, setCases] = useState<CareCaseItem[]>([]);
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'OPEN' | 'OVERDUE' | 'RESOLVED'>('ALL');
   const [unconfirmedReports, setUnconfirmedReports] = useState<UnconfirmedReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{ open: number; overdue: number; resolved: number }>({ open: 0, overdue: 0, resolved: 0 });
@@ -255,6 +257,36 @@ export default function AdminCareCases() {
     }
   };
 
+  // Xóa phiếu chăm sóc
+  const handleDeleteCase = async (careCase: CareCaseItem) => {
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa phiếu "${careCase.code} - ${careCase.title}" không? Hành động này sẽ xóa toàn bộ nhật ký liên hệ và không thể hoàn tác.`)) {
+      return;
+    }
+    try {
+      await api.care.deleteCareCase(careCase.id);
+      alert('Đã xóa phiếu hỗ trợ thành công!');
+      fetchCases();
+      fetchStats();
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi xóa phiếu hỗ trợ');
+    }
+  };
+
+  // Danh sách phiếu sau khi lọc theo thẻ KPI
+  const filteredCases = cases.filter((c) => {
+    const isOverdue = Boolean(c.dueAt && new Date(c.dueAt) < new Date() && c.status !== 'RESOLVED' && c.status !== 'CLOSED');
+    if (filterStatus === 'OPEN') {
+      return c.status === 'OPEN' || c.status === 'IN_PROGRESS' || c.status === 'WAITING_RESPONSE';
+    }
+    if (filterStatus === 'OVERDUE') {
+      return isOverdue;
+    }
+    if (filterStatus === 'RESOLVED') {
+      return c.status === 'RESOLVED' || c.status === 'CLOSED';
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -309,9 +341,22 @@ export default function AdminCareCases() {
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setFilterStatus((prev) => (prev === 'OPEN' ? 'ALL' : 'OPEN'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer transition select-none ${
+            filterStatus === 'OPEN'
+              ? 'border-brand-500 ring-2 ring-brand-500/20 bg-brand-50/20'
+              : 'border-slate-200 hover:border-brand-300'
+          }`}
+          title="Bấm để lọc phiếu đang mở"
+        >
           <div>
-            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Phiếu Đang Mở</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Phiếu Đang Mở</span>
+              {filterStatus === 'OPEN' && (
+                <span className="text-[9px] bg-brand-600 text-white font-semibold px-1.5 py-0.2 rounded-full">Đang lọc</span>
+              )}
+            </div>
             <div className="text-2xl font-black text-slate-900 mt-0.5">{stats.open}</div>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
@@ -319,9 +364,22 @@ export default function AdminCareCases() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-rose-200 bg-rose-50/10 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setFilterStatus((prev) => (prev === 'OVERDUE' ? 'ALL' : 'OVERDUE'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer transition select-none ${
+            filterStatus === 'OVERDUE'
+              ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/30'
+              : 'border-rose-200 bg-rose-50/10 hover:border-rose-400'
+          }`}
+          title="Bấm để lọc phiếu quá hạn"
+        >
           <div>
-            <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Quá Hạn</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">Quá Hạn</span>
+              {filterStatus === 'OVERDUE' && (
+                <span className="text-[9px] bg-rose-600 text-white font-semibold px-1.5 py-0.2 rounded-full">Đang lọc</span>
+              )}
+            </div>
             <div className="text-2xl font-black text-rose-700 mt-0.5">{stats.overdue}</div>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
@@ -329,9 +387,22 @@ export default function AdminCareCases() {
           </div>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between">
+        <div
+          onClick={() => setFilterStatus((prev) => (prev === 'RESOLVED' ? 'ALL' : 'RESOLVED'))}
+          className={`bg-white p-5 rounded-2xl border shadow-xs flex items-center justify-between cursor-pointer transition select-none ${
+            filterStatus === 'RESOLVED'
+              ? 'border-emerald-600 ring-2 ring-emerald-600/20 bg-emerald-50/30'
+              : 'border-slate-200 hover:border-emerald-300'
+          }`}
+          title="Bấm để lọc phiếu đã xử lý"
+        >
           <div>
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Đã Xử Lý Xong</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Đã Xử Lý Xong</span>
+              {filterStatus === 'RESOLVED' && (
+                <span className="text-[9px] bg-emerald-700 text-white font-semibold px-1.5 py-0.2 rounded-full">Đang lọc</span>
+              )}
+            </div>
             <div className="text-2xl font-black text-emerald-800 mt-0.5">{stats.resolved}</div>
           </div>
           <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-800 flex items-center justify-center font-bold">
@@ -340,12 +411,34 @@ export default function AdminCareCases() {
         </div>
       </div>
 
+      {/* Filter status banner */}
+      {filterStatus !== 'ALL' && activeSubTab === 'tickets' && (
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 px-4 py-2.5 rounded-2xl text-xs text-slate-700">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-500">Đang lọc:</span>
+            <span className="font-bold text-emerald-800 bg-white px-2.5 py-1 rounded-xl border border-slate-200 shadow-2xs">
+              {filterStatus === 'OPEN' && 'Phiếu Đang Mở'}
+              {filterStatus === 'OVERDUE' && 'Phiếu Quá Hạn'}
+              {filterStatus === 'RESOLVED' && 'Phiếu Đã Xử Lý Xong'}
+            </span>
+            <span className="text-slate-400">({filteredCases.length} phiếu phù hợp)</span>
+          </div>
+          <button
+            onClick={() => setFilterStatus('ALL')}
+            className="text-xs text-emerald-800 hover:text-emerald-900 font-bold underline cursor-pointer"
+          >
+            Hiển thị tất cả
+          </button>
+        </div>
+      )}
+
       {/* Navigation Sub-Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold">
         <button
           onClick={() => setActiveSubTab('tickets')}
-          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${activeSubTab === 'tickets' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-            }`}
+          className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+            activeSubTab === 'tickets' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+          }`}
         >
           <AlertCircle className="w-4 h-4" />
           <span>Danh Sách Phiếu Hỗ Trợ</span>
@@ -354,8 +447,9 @@ export default function AdminCareCases() {
         {(currentTeam === 'CS_PARENT' || currentTeam === 'ALL') && (
           <button
             onClick={() => setActiveSubTab('unconfirmed')}
-            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${activeSubTab === 'unconfirmed' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
-              }`}
+            className={`px-4 py-2 rounded-xl transition flex items-center gap-1.5 ${
+              activeSubTab === 'unconfirmed' ? 'bg-emerald-800 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+            }`}
           >
             <FileCheck className="w-4 h-4" />
             <span>Báo Cáo Chưa Xác Nhận</span>
@@ -371,26 +465,42 @@ export default function AdminCareCases() {
               <Loader2 className="animate-spin text-emerald-800" size={32} />
               <p className="text-xs font-bold">Đang tải danh sách ca hỗ trợ CSKH...</p>
             </div>
-          ) : cases.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 text-xs bg-white rounded-3xl border border-slate-200">
-              Hiện không có trường hợp nào cần xử lý lúc này. Toàn bộ lớp học đang vận hành ổn định
+          ) : filteredCases.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 text-xs bg-white rounded-3xl border border-slate-200 space-y-2">
+              <p>
+                {filterStatus !== 'ALL'
+                  ? 'Không tìm thấy phiếu nào theo bộ lọc đang chọn.'
+                  : 'Hiện không có trường hợp nào cần xử lý lúc này. Toàn bộ lớp học đang vận hành ổn định.'}
+              </p>
+              {filterStatus !== 'ALL' && (
+                <button
+                  onClick={() => setFilterStatus('ALL')}
+                  className="text-xs font-bold text-emerald-800 hover:underline cursor-pointer"
+                >
+                  Xóa bộ lọc
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
-              {cases.map((c) => {
+              {filteredCases.map((c) => {
                 const isOverdue = c.dueAt && new Date(c.dueAt) < new Date() && c.status !== 'RESOLVED' && c.status !== 'CLOSED';
 
                 return (
                   <div
                     key={c.id}
-                    className={`bg-white p-6 rounded-3xl border shadow-xs space-y-4 text-xs transition ${isOverdue ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200'
-                      }`}
+                    className={`bg-white p-6 rounded-3xl border shadow-xs space-y-4 text-xs transition ${
+                      isOverdue ? 'border-rose-400 bg-rose-50/10' : 'border-slate-200'
+                    }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-extrabold text-slate-900">{c.code}</span>
-                        <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${c.priority >= 3 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
-                          }`}>
+                        <span
+                          className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                            c.priority >= 3 ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
                           {c.priority >= 3 ? 'Mức độ: Khẩn cấp' : 'Mức độ: Cao'}
                         </span>
                         <span className="font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded text-[10px]">
@@ -456,7 +566,16 @@ export default function AdminCareCases() {
                       </div>
                     )}
 
-                    <div className="pt-2 flex items-center justify-end gap-2">
+                    <div className="pt-2 flex items-center justify-end gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleDeleteCase(c)}
+                        className="px-3.5 py-2 font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                        title="Xóa phiếu hỗ trợ này"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa phiếu</span>
+                      </button>
+
                       <button
                         onClick={() => {
                           setContactModalCase(c);
@@ -468,7 +587,7 @@ export default function AdminCareCases() {
                             followUpAt: '',
                           });
                         }}
-                        className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition flex items-center gap-1.5"
+                        className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                       >
                         <Phone className="w-3.5 h-3.5" />
                         <span>Gọi điện / Ghi nhật ký liên hệ</span>
@@ -477,7 +596,7 @@ export default function AdminCareCases() {
                       {c.lessonReportId && (
                         <button
                           onClick={() => setConfirmModalReport({ id: c.lessonReportId!, topic: c.title, tutorName: c.tutor?.user?.fullName })}
-                          className="px-4 py-2 font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition flex items-center gap-1.5"
+                          className="px-4 py-2 font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                         >
                           <FileCheck className="w-3.5 h-3.5" />
                           <span>Xác nhận sổ thay</span>

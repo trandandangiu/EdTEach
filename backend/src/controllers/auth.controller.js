@@ -20,6 +20,16 @@ export const authController = {
     }
   },
 
+  async checkAvailability(req, res, next) {
+    try {
+      const { username, email, phone } = req.body || {};
+      const result = await authService.checkAvailability({ username, email, phone });
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async registerParent(req, res, next) {
     try {
       const result = await authService.registerParent(req.body);
@@ -96,6 +106,15 @@ export const authController = {
         oldPassword,
         newPassword
       );
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async updateProfile(req, res, next) {
+    try {
+      const result = await authService.updateProfile(req.user.id, req.body || {});
       res.json(result);
     } catch (err) {
       next(err);

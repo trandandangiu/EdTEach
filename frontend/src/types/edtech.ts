@@ -101,6 +101,12 @@ export interface TutorClass {
   status: 'ACTIVE' | 'COMPLETED' | 'PAUSED';
   nextLessonTime: string;
   tutorNotes: string;
+  schedules?: Array<{
+    id?: string;
+    weekday: number;
+    startTime: string;
+    endTime: string;
+  }>;
 }
 
 export interface LessonReport {

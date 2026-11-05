@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 // ============================================================================
@@ -24,8 +24,8 @@ const PublicTutorDetailPage = lazy(() => import('../features/public/PublicTutorD
 // [FUTURE] const ForumDetailPage = lazy(() => import('../features/forum/ForumDetailPage'));
 const LoginPage = lazy(() => import('../pages/Login'));
 // [FUTURE] const StaffLogin = lazy(() => import('../pages/StaffLogin'));
-// [FUTURE] const StaffLayout = lazy(() => import('../pages/StaffLayout'));
 const ParentRegisterPage = lazy(() => import('../features/public/ParentRegisterPage'));
+const UserProfilePage = lazy(() => import('../features/profile/UserProfilePage'));
 
 // 2. Tuyển dụng & Gia sư (Tutor Portal)
 const TutorLayout = lazy(() => import('../features/tutor/TutorLayout'));
@@ -145,25 +145,52 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 };
 
 // Màn hình từ chối truy cập
-const AccessDeniedView: React.FC<{ reason: string }> = ({ reason }) => (
-  <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-    <div className="bg-white max-w-md w-full p-6 rounded-3xl shadow-sm border border-slate-200 text-center space-y-3">
-      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center justify-center mx-auto text-xl font-bold">
-        ✕
-      </div>
-      <h2 className="text-base font-bold text-slate-900">Không có quyền truy cập</h2>
-      <p className="text-xs text-slate-500 leading-relaxed">{reason}</p>
-      <div className="pt-2">
-        <button
-          onClick={() => window.history.back()}
-          className="px-4 py-2 text-xs font-semibold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl transition"
-        >
-          Quay lại trang trước
-        </button>
+const AccessDeniedView: React.FC<{ reason: string }> = ({ reason }) => {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const getDashboardPath = () => {
+    const roles: string[] = currentUser?.roles?.map((r: any) => (typeof r === 'string' ? r : r.code)) || [];
+    if (roles.includes('ADMIN')) return '/admin';
+    if (roles.includes('PARENT')) return '/parent/dashboard';
+    if (roles.includes('TUTOR')) return '/tutor/dashboard';
+    return '/';
+  };
+
+  const getDashboardLabel = () => {
+    const roles: string[] = currentUser?.roles?.map((r: any) => (typeof r === 'string' ? r : r.code)) || [];
+    if (roles.includes('ADMIN')) return 'Về trang Quản trị';
+    if (roles.includes('PARENT')) return 'Về Bàn làm việc Phụ huynh';
+    if (roles.includes('TUTOR')) return 'Về Bàn làm việc Gia sư';
+    return 'Về trang chủ';
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-ink-50 p-4">
+      <div className="bg-white max-w-md w-full p-8 rounded-3xl shadow-sm border border-ink-200 text-center space-y-4">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-danger-500 border border-rose-200 flex items-center justify-center mx-auto text-2xl font-bold">
+          ✕
+        </div>
+        <h2 className="text-lg font-semibold text-ink-900 tracking-tight">Không có quyền truy cập</h2>
+        <p className="text-sm text-ink-500 leading-relaxed">{reason}</p>
+        <div className="pt-3 flex flex-col sm:flex-row gap-2 justify-center">
+          <button
+            onClick={() => navigate(getDashboardPath())}
+            className="px-4 py-2.5 text-xs font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl transition cursor-pointer shadow-sm"
+          >
+            {getDashboardLabel()}
+          </button>
+          <button
+            onClick={() => window.history.back()}
+            className="px-4 py-2.5 text-xs font-semibold text-ink-700 bg-ink-100 hover:bg-ink-200 rounded-xl transition cursor-pointer"
+          >
+            Quay lại trang trước
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============================================================================
 // KHAI BÁO TOÀN BỘ CÂY ĐỊNH TUYẾN (APP ROUTES)
@@ -193,6 +220,11 @@ export const AppRoutes: React.FC = () => {
         <Route path="/register/parent" element={<ParentRegisterPage />} />
         <Route path="/register/tutor" element={<Navigate to="/apply" replace />} />
         <Route path="/apply" element={<TutorApplyPage />} />
+
+        {/* Thông tin cá nhân & Đổi mật khẩu cho người dùng đã đăng nhập */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/profile" element={<UserProfilePage />} />
+        </Route>
 
         {/* ===================================================================
             2. PHÂN HỆ TUYỂN DỤNG & PHÒNG THI ONLINE CHO GIA SƯ

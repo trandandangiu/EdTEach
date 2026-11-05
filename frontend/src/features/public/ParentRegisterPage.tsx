@@ -1,85 +1,140 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { Navbar } from '../../components/layout/Navbar';
 import { Footer } from '../../components/layout/Footer';
-import { GraduationCap, ShieldCheck, CheckCircle2, User, Phone, Mail, Lock, KeyRound, Loader2, Send } from 'lucide-react';
+import { CheckCircle2, User, Phone, Mail, Lock, Loader2, Plus, Trash2, Heart, ArrowRight, ShieldCheck, Home, LayoutDashboard } from 'lucide-react';
 import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+
+interface ChildItem {
+  id: string;
+  fullName: string;
+  grade: string;
+}
+
+const GRADE_OPTIONS = [
+  { value: 'Lớp 1', label: 'Lớp 1' },
+  { value: 'Lớp 2', label: 'Lớp 2' },
+  { value: 'Lớp 3', label: 'Lớp 3' },
+  { value: 'Lớp 4', label: 'Lớp 4' },
+  { value: 'Lớp 5', label: 'Lớp 5' },
+  { value: 'Lớp 6', label: 'Lớp 6' },
+  { value: 'Lớp 7', label: 'Lớp 7' },
+  { value: 'Lớp 8', label: 'Lớp 8' },
+  { value: 'Lớp 9', label: 'Lớp 9' },
+  { value: 'Lớp 10', label: 'Lớp 10' },
+  { value: 'Lớp 11', label: 'Lớp 11' },
+  { value: 'Lớp 12', label: 'Lớp 12' },
+];
 
 export default function ParentRegisterPage() {
   const navigate = useNavigate();
-  const { switchUserRole, login } = useAuth();
+  const { login } = useAuth();
 
+  // Thông tin đăng ký
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [childName, setChildName] = useState('');
-  const [childGrade, setChildGrade] = useState('Lớp 4');
 
-  // OTP Email Verification States
-  const [otpCode, setOtpCode] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [isOtpVerified, setIsOtpVerified] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-  const [otpMsg, setOtpMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  // Danh sách con yêu (Hỗ trợ 1 hoặc nhiều con)
+  const [children, setChildren] = useState<ChildItem[]>([
+    { id: 'child-1', fullName: '', grade: 'Lớp 1' },
+  ]);
+
+  // Validation lỗi đối chiếu DB
+  const [errors, setErrors] = useState<{ username?: string; phone?: string; email?: string; password?: string }>({});
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Countdown timer for resending OTP
-  useEffect(() => {
-    let timer: any;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
+  // Thêm một con yêu mới
+  const handleAddChild = () => {
+    setChildren((prev) => [
+      ...prev,
+      { id: `child-${Date.now()}`, fullName: '', grade: 'Lớp 1' },
+    ]);
+  };
 
-  const handleSendOtp = async () => {
-    if (!email || !email.includes('@')) {
-      setOtpMsg({ type: 'error', text: 'Vui lòng nhập đúng định dạng Gmail trước khi gửi mã.' });
-      return;
-    }
+  // Xóa bớt một con yêu
+  const handleRemoveChild = (id: string) => {
+    if (children.length <= 1) return;
+    setChildren((prev) => prev.filter((c) => c.id !== id));
+  };
 
-    setOtpLoading(true);
-    setOtpMsg(null);
+  // Cập nhật thông tin con
+  const handleUpdateChild = (id: string, field: 'fullName' | 'grade', value: string) => {
+    setChildren((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    );
+  };
 
+  // Tự động kiểm tra trùng username với database khi người dùng rời ô nhập (onBlur)
+  const handleCheckUsername = async () => {
+    const trimmed = username.trim().toLowerCase();
+    if (!trimmed) return;
+    setCheckingUsername(true);
     try {
-      const res: any = await api.auth.sendEmailOtp(email.trim(), 'PARENT_REGISTER');
-      setIsOtpSent(true);
-      setCountdown(60);
-      if (res.debugOtp && !res.sentViaSmtp) {
-        setOtpCode(res.debugOtp);
+      const res = await api.auth.checkAvailability({ username: trimmed });
+      if (res && res.checks && res.checks.username === false) {
+        setErrors((prev) => ({
+          ...prev,
+          username: 'Tên đăng nhập này đã được sử dụng. Vui lòng chọn tên khác.',
+        }));
+      } else {
+        setErrors((prev) => ({ ...prev, username: undefined }));
       }
-      const extraHint = res.debugOtp ? ` (Mã OTP test: ${res.debugOtp})` : '';
-      setOtpMsg({ type: 'success', text: `${res.message || `Đã gửi mã xác thực về Gmail ${email}`}${extraHint}` });
-    } catch (err: any) {
-      setOtpMsg({ type: 'error', text: err?.message || 'Không thể gửi mã xác nhận. Vui lòng thử lại.' });
+    } catch {
+      // ignore
     } finally {
-      setOtpLoading(false);
+      setCheckingUsername(false);
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otpCode || otpCode.trim().length !== 6) {
-      setOtpMsg({ type: 'error', text: 'Vui lòng nhập đầy đủ 6 chữ số mã xác nhận.' });
-      return;
-    }
-
-    setOtpLoading(true);
-    setOtpMsg(null);
-
+  // Kiểm tra trùng SĐT
+  const handleCheckPhone = async () => {
+    const trimmed = phone.trim();
+    if (!trimmed) return;
     try {
-      await api.auth.verifyEmailOtp(email.trim(), otpCode.trim());
-      setIsOtpVerified(true);
-      setOtpMsg({ type: 'success', text: 'Xác thực Gmail thành công! Bạn có thể hoàn tất đăng ký.' });
-    } catch (err: any) {
-      setOtpMsg({ type: 'error', text: err?.message || 'Mã xác nhận không đúng hoặc đã hết hạn.' });
-    } finally {
-      setOtpLoading(false);
+      const res = await api.auth.checkAvailability({ phone: trimmed });
+      if (res && res.checks && res.checks.phone === false) {
+        setErrors((prev) => ({
+          ...prev,
+          phone: 'Số điện thoại này đã được sử dụng trong hệ thống.',
+        }));
+      } else {
+        setErrors((prev) => ({ ...prev, phone: undefined }));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // Kiểm tra trùng Email
+  const handleCheckEmail = async () => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed || !trimmed.includes('@')) return;
+    try {
+      const res = await api.auth.checkAvailability({ email: trimmed });
+      if (res && res.checks && res.checks.email === false) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'Email này đã được sử dụng. Vui lòng dùng email khác.',
+        }));
+      } else {
+        setErrors((prev) => ({ ...prev, email: undefined }));
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -87,264 +142,311 @@ export default function ParentRegisterPage() {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!isOtpVerified) {
-      setErrorMsg('Vui lòng gửi và xác thực mã OTP Gmail trước khi tạo tài khoản.');
+    if (password.length < 6) {
+      setErrorMsg('Mật khẩu phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+
+    if (errors.username || errors.phone || errors.email) {
+      setErrorMsg('Vui lòng điều chỉnh các thông tin bị trùng lặp trước khi gửi.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const username = (email || phone).trim().toLowerCase();
+      // Lọc danh sách con yêu đã điền tên
+      const validChildren = children
+        .map((c) => ({ fullName: c.fullName.trim(), grade: c.grade }))
+        .filter((c) => c.fullName.length > 0);
+
+      const finalUsername = username.trim().toLowerCase();
+      const finalPassword = password.trim();
+
       await api.auth.registerParent({
-        username,
-        password,
+        username: finalUsername,
+        password: finalPassword,
         fullName: fullName.trim(),
         phone: phone.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
+        children: validChildren,
       });
 
+      // Tự động đăng nhập luôn để phụ huynh vào bảng điều khiển
+      try {
+        await login(finalUsername, finalPassword);
+      } catch (loginErr) {
+        console.log('Auto login notice:', loginErr);
+      }
+
       setIsSuccess(true);
-      setTimeout(async () => {
-        try {
-          await login(username, password);
-        } catch {
-          // ignore
-        }
-        navigate('/parent/dashboard');
-      }, 1200);
     } catch (err: any) {
-      console.error('Registration failed:', err);
-      setErrorMsg(err?.message || 'Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+      setErrorMsg(err?.message || 'Đăng ký tài khoản thất bại. Vui lòng kiểm tra lại thông tin.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800">
+    <div className="min-h-screen flex flex-col bg-ink-50 text-ink-900 antialiased">
       <Navbar />
 
-      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 flex-1 w-full">
-        <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xl space-y-6">
+      <div className="flex-1 max-w-xl mx-auto px-5 sm:px-8 py-10 w-full flex flex-col justify-center">
+        <Card variant="static" padding="lg" className="shadow-xl shadow-ink-200/50 space-y-6">
           <div className="text-center space-y-2">
-            <span className="text-xs font-bold text-emerald-800 uppercase tracking-widest">Dành Cho Phụ Huynh</span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <span className="text-xs font-semibold text-brand-700 uppercase tracking-widest">
+              Dành cho phụ huynh
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink-900">
               Đăng Ký Tài Khoản Phụ Huynh
             </h1>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Tạo tài khoản để quản lý lịch học, nhận báo cáo tiến độ từng buổi và bảo mật bằng mã xác thực Gmail.
+            <p className="text-xs text-ink-500 max-w-md mx-auto leading-relaxed">
+              Tạo tài khoản nhanh chóng và bắt đầu kết nối gia sư, theo dõi lịch học cho các bé ngay lập tức.
             </p>
           </div>
 
           {isSuccess ? (
-            <div className="py-10 text-center space-y-3">
-              <div className="w-14 h-14 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+            <div className="py-8 text-center space-y-5">
+              <div className="w-16 h-16 bg-brand-50 text-brand-600 rounded-full flex items-center justify-center mx-auto text-3xl font-semibold border border-brand-200">
                 ✓
               </div>
-              <h2 className="text-lg font-bold text-slate-900">Đăng ký thành công!</h2>
-              <p className="text-xs text-slate-500">Đang chuyển bạn đến Bảng điều khiển phụ huynh...</p>
+              <div className="space-y-2">
+                <h2 className="text-xl font-semibold text-ink-900">Tạo tài khoản Phụ Huynh thành công!</h2>
+                <p className="text-xs text-ink-600 max-w-md mx-auto leading-relaxed">
+                  Chào mừng <strong>{fullName}</strong>! Tài khoản của bạn đã sẵn sàng sử dụng. Bạn có thể vào ngay Bàn làm việc phụ huynh để gửi yêu cầu tìm gia sư hoặc thiết lập thông tin cho các bé.
+                </p>
+              </div>
+
+              <div className="p-3.5 bg-brand-50/60 rounded-2xl border border-brand-100 text-xs text-brand-800 font-medium inline-flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-brand-600 shrink-0" />
+                <span>Bạn có thể tùy ý sửa đổi thông tin cá nhân và mật khẩu bất cứ lúc nào tại mục Thông tin cá nhân.</span>
+              </div>
+
+              <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                <Button
+                  variant="primary"
+                  onClick={() => navigate('/parent/dashboard')}
+                  className="rounded-xl px-6 py-2.5 text-xs font-semibold"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>Vào Bàn làm việc Phụ huynh</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/')}
+                  className="rounded-xl px-6 py-2.5 text-xs font-semibold"
+                >
+                  <Home className="w-4 h-4" />
+                  <span>Về trang chủ</span>
+                </Button>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleRegister} className="space-y-4">
               {errorMsg && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-medium">
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-danger-600 text-xs rounded-xl font-medium">
                   {errorMsg}
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Họ và tên phụ huynh *</label>
+              {/* 1. Họ và tên phụ huynh */}
+              <Input
+                label="Họ và tên phụ huynh *"
+                placeholder="Ví dụ: Nguyễn Thị Mai Anh"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                icon={<User className="w-4 h-4" />}
+                required
+              />
+
+              {/* 2. Tên đăng nhập (Username) + Đối chiếu DB */}
+              <div>
                 <div className="relative">
-                  <input
-                    type="text"
+                  <Input
+                    label="Tên đăng nhập (Username) *"
+                    placeholder="Ví dụ: maianh_nguyen"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
+                    }}
+                    onBlur={handleCheckUsername}
+                    icon={<User className="w-4 h-4" />}
                     required
-                    placeholder="Ví dụ: Nguyễn Thị Mai Anh"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
                   />
-                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Số điện thoại liên hệ / Zalo *</label>
-                  <div className="relative">
-                    <input
-                      type="tel"
-                      required
-                      placeholder="0988 123 456"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                    />
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Mật khẩu đăng nhập *</label>
-                  <div className="relative">
-                    <input
-                      type="password"
-                      required
-                      placeholder="Tối thiểu 6 ký tự"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                    />
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  </div>
-                </div>
-              </div>
-
-              {/* KHỐI XÁC THỰC GMAIL BẰNG MÃ OTP */}
-              <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-extrabold text-emerald-950">
-                    Địa chỉ Gmail nhận thông báo & Mã xác nhận *
-                  </label>
-                  {isOtpVerified && (
-                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-lg flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      Đã xác thực Gmail
-                    </span>
+                  {checkingUsername && (
+                    <div className="absolute right-3 top-8 text-ink-400">
+                      <Loader2 className="w-4 h-4 animate-spin text-brand-600" />
+                    </div>
                   )}
                 </div>
-
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="email"
-                      required
-                      disabled={isOtpVerified}
-                      placeholder="nhapemailcuaban@gmail.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 pl-9 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white disabled:bg-slate-100"
-                    />
-                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={otpLoading || countdown > 0 || isOtpVerified}
-                    className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition shrink-0 flex items-center gap-1.5"
-                  >
-                    {otpLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5" />
-                    )}
-                    <span>
-                      {countdown > 0 ? `Gửi lại (${countdown}s)` : isOtpSent ? 'Gửi lại mã' : 'Gửi mã xác nhận'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Nhập mã OTP khi đã gửi */}
-                {isOtpSent && !isOtpVerified && (
-                  <div className="pt-2 flex gap-2">
-                    <div className="relative flex-1">
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="Nhập 6 số mã xác nhận từ Gmail..."
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                        className="w-full text-xs font-mono font-bold tracking-widest text-center px-3 py-2.5 pl-9 border border-emerald-300 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
-                      />
-                      <KeyRound className="w-4 h-4 text-emerald-700 absolute left-3 top-3" />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={otpLoading || otpCode.trim().length !== 6}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl transition shrink-0"
-                    >
-                      Xác nhận mã
-                    </button>
-                  </div>
-                )}
-
-                {otpMsg && (
-                  <p className={`text-[11px] font-medium ${otpMsg.type === 'error' ? 'text-rose-600' : 'text-emerald-800'}`}>
-                    {otpMsg.text}
+                {errors.username && (
+                  <p className="text-[11px] font-medium text-danger-500 mt-1">
+                    {errors.username}
                   </p>
                 )}
               </div>
 
-              {/* Thông tin bé cần kèm */}
-              <div className="pt-2 border-t border-slate-100">
-                <span className="block text-xs font-extrabold text-emerald-900 mb-3">Thông tin học sinh (Bé cần kèm)</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">Tên của bé</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Bảo Nam"
-                      value={childName}
-                      onChange={(e) => setChildName(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-700">Khối lớp hiện tại</label>
-                    <select
-                      value={childGrade}
-                      onChange={(e) => setChildGrade(e.target.value)}
-                      className="w-full text-xs px-3 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-700 focus:outline-hidden bg-white"
-                    >
-                      <option value="Tiền Tiểu Học">Chuẩn bị vào Lớp 1</option>
-                      <option value="Lớp 1">Lớp 1</option>
-                      <option value="Lớp 2">Lớp 2</option>
-                      <option value="Lớp 3">Lớp 3</option>
-                      <option value="Lớp 4">Lớp 4</option>
-                      <option value="Lớp 5">Lớp 5</option>
-                      <option value="Lớp 6">Lớp 6</option>
-                    </select>
-                  </div>
+              {/* Mật khẩu & Xác nhận mật khẩu */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Input
+                    label="Mật khẩu *"
+                    type="password"
+                    placeholder="Tối thiểu 6 ký tự"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    icon={<Lock className="w-4 h-4" />}
+                    required
+                  />
+                </div>
+                <div>
+                  <Input
+                    label="Xác nhận mật khẩu *"
+                    type="password"
+                    placeholder="Nhập lại mật khẩu"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    icon={<Lock className="w-4 h-4" />}
+                    required
+                  />
                 </div>
               </div>
 
-              <div className="pt-4">
-                <button
+              {/* 3. Số điện thoại & Email */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Input
+                    label="Số điện thoại / Zalo *"
+                    type="tel"
+                    placeholder="0988 123 456"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
+                    }}
+                    onBlur={handleCheckPhone}
+                    icon={<Phone className="w-4 h-4" />}
+                    required
+                  />
+                  {errors.phone && (
+                    <p className="text-[11px] font-medium text-danger-500 mt-1">
+                      {errors.phone}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <Input
+                    label="Địa chỉ Email *"
+                    type="email"
+                    placeholder="phuhuynh@gmail.com"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+                    }}
+                    onBlur={handleCheckEmail}
+                    icon={<Mail className="w-4 h-4" />}
+                    required
+                  />
+                  {errors.email && (
+                    <p className="text-[11px] font-medium text-danger-500 mt-1">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 4. Khối Con Yêu — Có nút "+ Thêm con yêu" */}
+              <div className="pt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Heart className="w-4 h-4 text-brand-600 fill-brand-100" />
+                    <span className="text-xs font-semibold text-ink-900">
+                      Thông tin con yêu ({children.length})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddChild}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Thêm con yêu</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {children.map((child, index) => (
+                    <div
+                      key={child.id}
+                      className="p-3.5 bg-ink-50/70 border border-ink-200/80 rounded-2xl space-y-2 relative"
+                    >
+                      <div className="flex items-center justify-between text-xs text-ink-500 font-medium">
+                        <span>Bé thứ {index + 1}</span>
+                        {children.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveChild(child.id)}
+                            title="Xóa bé này"
+                            className="text-ink-400 hover:text-danger-500 p-1 rounded-lg transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <Input
+                          placeholder="Họ và tên bé (ví dụ: Bảo Nam)"
+                          value={child.fullName}
+                          onChange={(e) => handleUpdateChild(child.id, 'fullName', e.target.value)}
+                        />
+
+                        <Select
+                          value={child.grade}
+                          onChange={(e) => handleUpdateChild(child.id, 'grade', e.target.value)}
+                          options={GRADE_OPTIONS}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="pt-3">
+                <Button
                   type="submit"
-                  disabled={loading || !isOtpVerified}
-                  className="w-full bg-emerald-800 hover:bg-emerald-900 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-xl shadow-md transition text-xs flex items-center justify-center gap-2"
+                  variant="primary"
+                  fullWidth
+                  disabled={loading || !!errors.username || !!errors.phone || !!errors.email}
+                  className="rounded-xl py-3 text-sm font-semibold cursor-pointer"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Đang tạo tài khoản...</span>
+                      <span>Đang khởi tạo tài khoản...</span>
                     </>
                   ) : (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Hoàn tất đăng ký & Khám phá gia sư</span>
-                    </>
+                    <span>Tạo Tài Khoản Phụ Huynh Ngay</span>
                   )}
-                </button>
-                {!isOtpVerified && (
-                  <p className="text-[11px] text-center text-slate-400 mt-2">
-                    * Bạn cần nhấn "Gửi mã xác nhận" và điền mã từ Gmail để kích hoạt nút đăng ký.
-                  </p>
-                )}
-              </div>
-
-              <div className="text-center text-xs text-slate-500 pt-2">
-                Đã có tài khoản?{' '}
-                <Link to="/login" className="font-bold text-emerald-800 hover:underline">
-                  Đăng nhập tại đây
-                </Link>
+                </Button>
               </div>
             </form>
           )}
-        </div>
+
+          <div className="pt-2 border-t border-ink-100 text-center text-xs text-ink-500">
+            Đã có tài khoản?{' '}
+            <Link to="/login" className="font-semibold text-brand-700 hover:underline">
+              Đăng nhập ngay
+            </Link>
+          </div>
+        </Card>
       </div>
 
       <Footer />

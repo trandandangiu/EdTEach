@@ -322,3 +322,139 @@ export async function rejectClass(req, res, next) {
     next(err);
   }
 }
+
+// Cập nhật lịch học / thời khóa biểu cho lớp học của học sinh
+export async function updateClassSchedule(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { schedules, location, meetingUrl } = req.body;
+
+    const classItem = await prisma.class.findUnique({
+      where: { id },
+      include: { tutor: true },
+    });
+
+    if (!classItem) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    const isOwnerTutor = classItem.tutor?.userId === req.user.id;
+    const isAdmin = req.user.roles?.includes('ADMIN');
+
+    if (!isOwnerTutor && !isAdmin) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền chỉnh sửa lớp học này' });
+    }
+
+    // Cập nhật thông tin lớp
+    await prisma.class.update({
+      where: { id },
+      data: {
+        location: location !== undefined ? location : undefined,
+        meetingUrl: meetingUrl !== undefined ? meetingUrl : undefined,
+      },
+    });
+
+    // Nếu có mảng schedules truyền lên
+    if (Array.isArray(schedules)) {
+      // Xóa schedules cũ
+      await prisma.classSchedule.deleteMany({ where: { classId: id } });
+
+      // Tạo schedules mới
+      if (schedules.length > 0) {
+        await prisma.classSchedule.createMany({
+          data: schedules.map((s) => ({
+            classId: id,
+            weekday: Number(s.weekday),
+            startTime: s.startTime || '18:30',
+            endTime: s.endTime || '20:00',
+            effectiveFrom: new Date(),
+          })),
+        });
+      }
+    }
+
+    const updated = await prisma.class.findUnique({
+      where: { id },
+      include: { schedules: true, students: { include: { student: true } } },
+    });
+
+    res.json({ success: true, data: updated, message: 'Cập nhật thời khóa biểu thành công!' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Gia sư giao bài tập về nhà cho học sinh trong lớp
+export async function assignHomework(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { studentId, title, description, dueDate, type } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ success: false, message: 'Tiêu đề bài tập không được để trống' });
+    }
+
+    const classItem = await prisma.class.findUnique({
+      where: { id },
+      include: { tutor: true, students: true },
+    });
+
+    if (!classItem) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    const targetStudentId = studentId || classItem.students[0]?.studentId;
+    if (!targetStudentId) {
+      return res.status(400).json({ success: false, message: 'Lớp học chưa có học sinh để giao bài' });
+    }
+
+    const task = await prisma.assignmentTask.create({
+      data: {
+        classId: id,
+        studentId: targetStudentId,
+        createdById: req.user.id,
+        title,
+        description: description || null,
+        type: type || 'HOMEWORK_PHOTO',
+        dueDate: dueDate ? new Date(dueDate) : null,
+        status: 'ASSIGNED',
+      },
+    });
+
+    res.status(201).json({ success: true, data: task, message: 'Đã giao bài tập về nhà cho bé thành công!' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// Xóa lớp học (Admin / Ban điều phối)
+export async function deleteClass(req, res, next) {
+  try {
+    const { id } = req.params;
+    const isStaffOrAdmin = req.user.roles.some((r) =>
+      ['ADMIN', 'STAFF_MATCHING', 'STAFF_CS'].includes(r)
+    );
+    if (!isStaffOrAdmin) {
+      return res.status(403).json({ success: false, message: 'Chỉ Quản trị viên hoặc Ban điều phối mới có quyền xóa lớp học' });
+    }
+
+    const classItem = await prisma.class.findUnique({ where: { id } });
+    if (!classItem) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy lớp học' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.assignmentTask.deleteMany({ where: { classId: id } });
+      await tx.lessonReport.deleteMany({ where: { classId: id } });
+      await tx.lesson.deleteMany({ where: { classId: id } });
+      await tx.classSchedule.deleteMany({ where: { classId: id } });
+      await tx.classStudent.deleteMany({ where: { classId: id } });
+      await tx.class.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: `Đã xóa lớp học ${classItem.code || id} thành công` });
+  } catch (err) {
+    next(err);
+  }
+}
+

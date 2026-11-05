@@ -76,6 +76,11 @@ router.get(
  *         description: OK
  */
 router.get(
+  '/stats',
+  adminController.getStats
+);
+
+router.get(
   '/database/stats',
   requirePermission('admin:database:view'),
   adminController.getStats

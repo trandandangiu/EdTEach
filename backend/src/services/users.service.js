@@ -95,6 +95,12 @@ export const usersService = {
           department: {
             select: { id: true, code: true, name: true },
           },
+          parentProfile: {
+            select: { province: true, district: true, address: true },
+          },
+          tutorProfile: {
+            select: { province: true, district: true },
+          },
           userRoles: {
             include: {
               role: {
@@ -111,10 +117,16 @@ export const usersService = {
       const roles = u.userRoles.map((ur) => ur.role);
       const primaryRole = roles[0]?.code || 'USER';
 
+      const rawLocation = u.parentProfile?.address
+        ? [u.parentProfile.address, u.parentProfile.district, u.parentProfile.province].filter(Boolean).join(', ')
+        : [u.parentProfile?.district || u.tutorProfile?.district, u.parentProfile?.province || u.tutorProfile?.province].filter(Boolean).join(', ');
+      const location = rawLocation || '—';
+
       return {
         ...u,
         roles,
         role: primaryRole,
+        location,
         userRoles: undefined,
         ...(isGuest ? { email: undefined, phone: undefined } : {}),
       };
@@ -317,14 +329,27 @@ export const usersService = {
         });
       }
 
-      // Tạo hồ sơ rỗng tương ứng nếu là PARENT hoặc TUTOR
+      // Tạo hồ sơ tương ứng nếu là PARENT hoặc TUTOR kèm địa chỉ/khu vực
+      const provinceVal = data.province || data.location || null;
+      const districtVal = data.district || null;
+      const addressVal = data.address || null;
+
       if (userType === 'PARENT') {
         await tx.parentProfile.create({
-          data: { userId: user.id },
+          data: {
+            userId: user.id,
+            province: provinceVal,
+            district: districtVal,
+            address: addressVal,
+          },
         });
-      } else if (userType === 'TUTOR' && roles.some((r) => r.code === 'TUTOR')) {
+      } else if (userType === 'TUTOR' || roles.some((r) => r.code === 'TUTOR' || r.code === 'APPLICANT')) {
         await tx.tutorProfile.create({
-          data: { userId: user.id },
+          data: {
+            userId: user.id,
+            province: provinceVal,
+            district: districtVal,
+          },
         });
       }
 
@@ -432,6 +457,42 @@ export const usersService = {
         where: { id: userId },
         data: updateData,
       });
+
+      if (data.location !== undefined || data.province !== undefined || data.district !== undefined || data.address !== undefined) {
+        const provinceVal = data.province !== undefined ? data.province : data.location;
+        const districtVal = data.district;
+        const addressVal = data.address;
+
+        if (existing.userType === 'PARENT') {
+          await tx.parentProfile.upsert({
+            where: { userId },
+            create: {
+              userId,
+              province: provinceVal || null,
+              district: districtVal || null,
+              address: addressVal || null,
+            },
+            update: {
+              ...(provinceVal !== undefined && { province: provinceVal }),
+              ...(districtVal !== undefined && { district: districtVal }),
+              ...(addressVal !== undefined && { address: addressVal }),
+            },
+          });
+        } else if (existing.userType === 'TUTOR') {
+          await tx.tutorProfile.upsert({
+            where: { userId },
+            create: {
+              userId,
+              province: provinceVal || null,
+              district: districtVal || null,
+            },
+            update: {
+              ...(provinceVal !== undefined && { province: provinceVal }),
+              ...(districtVal !== undefined && { district: districtVal }),
+            },
+          });
+        }
+      }
 
       await tx.auditLog.create({
         data: {

@@ -1,19 +1,18 @@
-// frontend/src/components/layout/Navbar.tsx
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
-  GraduationCap,
-  ShieldCheck,
   LogOut,
   ChevronDown,
-  CheckCircle2,
-  Gamepad2,
-  Award,
   Users,
+  GraduationCap,
+  ShieldCheck,
+  User,
+  Settings,
 } from 'lucide-react';
+import { Button } from '../ui/Button';
 
-// ★ Helper: chuẩn hoá role về string code (xử lý cả 2 dạng: string hoặc object)
+// Helper: chuẩn hoá role về string code
 const getRoleCode = (role: any): string => {
   if (typeof role === 'string') return role;
   return role?.code ?? '';
@@ -24,313 +23,212 @@ const getRoleName = (role: any): string => {
   return role?.name ?? role?.code ?? '';
 };
 
-const getStaffDashboardPath = (roles: string[], deptCode?: string) => {
-  if (roles.includes('ADMIN')) return '/admin';
-  if (roles.includes('STAFF_RECRUIT') || deptCode === 'DEPT_RECRUIT') return '/staff/recruit';
-  if (roles.includes('STAFF_MATCHING') || deptCode === 'DEPT_MATCHING') return '/staff/matching';
-  if (roles.includes('STAFF_CS') || deptCode === 'DEPT_CS') return '/staff/care';
-  if (roles.includes('STAFF_TUTOR_CARE') || deptCode === 'DEPT_TUTOR_CARE') return '/staff/tutor-care';
-  if (roles.includes('STAFF_ACADEMIC') || deptCode === 'DEPT_ACADEMIC') return '/staff/academic';
-  if (roles.includes('STAFF_FORUM') || deptCode === 'DEPT_FORUM') return '/staff/forum';
-  return '/staff/recruit';
-};
-
 export const Navbar: React.FC = () => {
-  const { currentUser, switchUserRole, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
 
-  // ★ Chuẩn hoá mảng roles thành mảng string code
   const roleCodes: string[] = (currentUser?.roles ?? []).map(getRoleCode);
   const hasRole = (code: string) => roleCodes.includes(code);
 
-  // =========================================================================
-  // 🚧 TẠM ẨN KIDS MODE — BẬT LẠI BẰNG CÁCH BỎ COMMENT
-  // =========================================================================
-  // if (currentUser?.actorType === 'STUDENT') {
-  //   return (
-  //     <header className="sticky top-0 z-40 bg-emerald-700 text-white shadow-md border-b border-emerald-800">
-  //       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-  //         <div className="flex items-center gap-3">
-  //           <Link to="/kids" className="flex items-center gap-2 group">
-  //             <span className="w-10 h-10 rounded-2xl bg-white text-emerald-800 font-black text-xl flex items-center justify-center shadow-inner group-hover:scale-105 transition">
-  //               🌱
-  //             </span>
-  //             <div>
-  //               <span className="font-black text-lg tracking-tight text-white block leading-tight">Góc Học Của Bé</span>
-  //               <span className="text-[11px] text-emerald-200 font-medium">Bảo Nam · Lớp 4A</span>
-  //             </div>
-  //           </Link>
-  //         </div>
-  //
-  //         <nav className="flex items-center gap-1 sm:gap-2">
-  //           <Link to="/kids" className="...">...</Link>
-  //           <Link to="/kids/games" className="...">...</Link>
-  //           <Link to="/kids/trophy" className="...">...</Link>
-  //         </nav>
-  //
-  //         <div className="flex items-center gap-2">
-  //           <button onClick={() => { switchUserRole('PARENT'); navigate('/parent/dashboard'); }} className="...">
-  //             <span>Về chế độ Bố Mẹ</span>
-  //           </button>
-  //         </div>
-  //       </div>
-  //     </header>
-  //   );
-  // }
-
   return (
-    <>
-      {/* =====================================================================
-          🚧 TẠM ẨN THANH DEMO ROLE SWITCHER — Chỉ dùng khi dev test
-          Bật lại bằng cách bỏ comment khối dưới
-      ===================================================================== */}
-      {/* <div className="bg-emerald-950 text-emerald-200 text-xs px-4 py-1.5 border-b border-emerald-900 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-semibold text-emerald-100">Chế độ trải nghiệm:</span>
-          <span className="text-emerald-300">
-            {currentUser ? `${currentUser.name} (${(currentUser.roles ?? []).map(getRoleName).join(', ')})` : 'Khách vãng lai'}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-emerald-400 hidden sm:inline text-[11px]">Chuyển vai trò:</span>
-          <button onClick={() => { switchUserRole('PUBLIC'); navigate('/'); }} className="px-2 py-0.5 rounded text-[11px]">Khách</button>
-          <button onClick={() => { switchUserRole('PARENT'); navigate('/parent/dashboard'); }} className="px-2 py-0.5 rounded text-[11px]">Phụ Huynh</button>
-          <button onClick={() => { switchUserRole('TUTOR'); navigate('/tutor/dashboard'); }} className="px-2 py-0.5 rounded text-[11px]">Gia Sư</button>
-          <button onClick={() => { switchUserRole('APPLICANT'); navigate('/apply'); }} className="px-2 py-0.5 rounded text-[11px]">Ứng Viên</button>
-          <button onClick={() => { switchUserRole('ADMIN'); navigate('/admin'); }} className="px-2 py-0.5 rounded text-[11px]">Admin</button>
-        </div>
-      </div> */}
+    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-lg border-b border-ink-200/60">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-10">
+          {/* Logo text only, no colored box as specified */}
+          <Link to="/" className="flex items-center gap-1.5 group">
+            <span className="font-semibold text-lg sm:text-xl tracking-tight text-ink-900">
+              Viet<span className="text-brand-600">Tutor</span>
+            </span>
+          </Link>
 
-      {/* Main Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white border-b border-emerald-900/10 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold shadow-sm">
-                <GraduationCap className="w-6 h-6 text-emerald-100" />
-              </div>
-              <div>
-                <span className="font-extrabold text-xl tracking-tight text-emerald-950 block leading-tight">
-                  Viet<span className="text-emerald-700">Tutor</span>
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-700/80">
-                  Gia Sư Tinh Hoa
-                </span>
-              </div>
-            </Link>
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-ink-600">
+            {/* 1. Nếu là GIA SƯ: Hiện Bàn Làm Việc Gia Sư */}
+            {currentUser && hasRole('TUTOR') && !hasRole('ADMIN') && (
+              <Link
+                to="/tutor/dashboard"
+                className={`transition-colors py-1 flex items-center gap-1.5 ${
+                  location.pathname.startsWith('/tutor')
+                    ? 'text-ink-900 font-semibold'
+                    : 'hover:text-ink-900'
+                }`}
+              >
+                <GraduationCap className="w-4 h-4 text-brand-600" />
+                <span>Bàn Làm Việc Gia Sư</span>
+              </Link>
+            )}
 
-            <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
-              {/* 1. Nếu là GIA SƯ: Chỉ hiện duy nhất Bàn Làm Việc Gia Sư */}
-              {currentUser && hasRole('TUTOR') && !hasRole('ADMIN') && (
+            {/* 2. Nếu là PHỤ HUYNH: Hiện Bàn Làm Việc Phụ Huynh */}
+            {currentUser && hasRole('PARENT') && !hasRole('ADMIN') && !hasRole('TUTOR') && (
+              <Link
+                to="/parent/dashboard"
+                className={`transition-colors py-1 flex items-center gap-1.5 ${
+                  location.pathname.startsWith('/parent')
+                    ? 'text-ink-900 font-semibold'
+                    : 'hover:text-ink-900'
+                }`}
+              >
+                <Users className="w-4 h-4 text-brand-600" />
+                <span>Bàn Làm Việc Phụ Huynh</span>
+              </Link>
+            )}
+
+            {/* 3. Nếu là ADMIN */}
+            {hasRole('ADMIN') && (
+              <Link
+                to="/admin"
+                className={`transition-colors py-1 flex items-center gap-1.5 ${
+                  location.pathname.startsWith('/admin')
+                    ? 'text-ink-900 font-semibold'
+                    : 'hover:text-ink-900'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-brand-600" />
+                <span>Quản trị hệ thống</span>
+              </Link>
+            )}
+
+            {/* 4. Khách vãng lai */}
+            {!currentUser && (
+              <>
                 <Link
-                  to="/tutor/dashboard"
-                  className={`transition-colors py-1 flex items-center gap-1.5 font-bold ${
-                    location.pathname.startsWith('/tutor')
-                      ? 'text-emerald-800 border-b-2 border-emerald-800'
-                      : 'text-slate-600 hover:text-emerald-900'
+                  to="/tutors"
+                  className={`transition-colors py-1 ${
+                    location.pathname === '/tutors'
+                      ? 'text-ink-900 font-semibold'
+                      : 'hover:text-ink-900'
                   }`}
                 >
-                  <GraduationCap className="w-4 h-4 text-emerald-700" />
-                  <span>Bàn Làm Việc Gia Sư</span>
-                </Link>
-              )}
-
-              {/* 2. Nếu là PHỤ HUYNH: Chỉ hiện duy nhất Bàn Làm Việc Phụ Huynh */}
-              {currentUser && hasRole('PARENT') && !hasRole('ADMIN') && !hasRole('TUTOR') && (
-                <Link
-                  to="/parent/dashboard"
-                  className={`transition-colors py-1 flex items-center gap-1.5 font-bold ${
-                    location.pathname.startsWith('/parent')
-                      ? 'text-emerald-800 border-b-2 border-emerald-800'
-                      : 'text-slate-600 hover:text-emerald-900'
-                  }`}
-                >
-                  <Users className="w-4 h-4 text-emerald-700" />
-                  <span>Bàn Làm Việc Phụ Huynh</span>
-                </Link>
-              )}
-
-              {/* 3. Nếu là ADMIN */}
-              {hasRole('ADMIN') && (
-                <>
-                  <Link
-                    to="/admin"
-                    className={`transition-colors py-1 flex items-center gap-1 font-bold ${
-                      location.pathname.startsWith('/admin')
-                        ? 'text-indigo-700 border-b-2 border-indigo-700'
-                        : 'text-indigo-600 hover:text-indigo-900'
-                    }`}
-                  >
-                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                    <span>Admin Center</span>
-                  </Link>
-                  <Link
-                    to="/tutors"
-                    className={`transition-colors py-1 ${
-                      location.pathname === '/tutors'
-                        ? 'text-emerald-800 border-b-2 border-emerald-800'
-                        : 'text-slate-600 hover:text-emerald-900'
-                    }`}
-                  >
-                    Tìm Gia Sư
-                  </Link>
-                </>
-              )}
-
-              {/* 4. Khách vãng lai chưa đăng nhập */}
-              {!currentUser && (
-                <>
-                  <Link
-                    to="/tutors"
-                    className={`transition-colors py-1 ${
-                      location.pathname === '/tutors'
-                        ? 'text-emerald-800 border-b-2 border-emerald-800'
-                        : 'text-slate-600 hover:text-emerald-900'
-                    }`}
-                  >
-                    Tìm Gia Sư
-                  </Link>
-                  <Link
-                    to="/apply"
-                    className="text-slate-600 hover:text-emerald-900 transition-colors py-1"
-                  >
-                    Đăng Ký Gia Sư
-                  </Link>
-                </>
-              )}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {currentUser ? (
-              <div className="flex items-center gap-3">
-                {/* 🚧 TẠM ẨN - NÚT GÓC BÉ HỌC (Kids Mode) */}
-                {/* {hasRole('PARENT') && (
-                  <button
-                    onClick={() => { switchUserRole('STUDENT'); navigate('/kids'); }}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition"
-                  >
-                    <span>🧒 Bật Góc Bé Học</span>
-                  </button>
-                )} */}
-
-                <div className="relative">
-                  <button
-                    onClick={() => setRoleMenuOpen(!roleMenuOpen)}
-                    className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-xl border border-slate-200 hover:border-emerald-300 transition bg-slate-50"
-                  >
-                    <img
-                      src={currentUser.avatar}
-                      alt={currentUser.name}
-                      className="w-7 h-7 rounded-lg object-cover border border-emerald-200"
-                    />
-                    <div className="text-left hidden sm:block">
-                      <div className="text-xs font-bold text-slate-800 leading-none">
-                        {currentUser.name}
-                      </div>
-                      <div className="text-[10px] text-emerald-700 font-medium">
-                        {getRoleName(currentUser.roles?.[0])}
-                      </div>
-                    </div>
-                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-
-                  {roleMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50">
-                      <div className="px-4 py-2 border-b border-slate-100 text-xs">
-                        <div className="font-bold text-slate-900">{currentUser.name}</div>
-                        <div className="text-slate-500 truncate">{currentUser.email}</div>
-                      </div>
-
-                      <div className="py-1 text-xs">
-                        {/* ✅ LUỒNG 1: Link phụ huynh */}
-                        {hasRole('PARENT') && (
-                          <Link
-                            to="/parent/dashboard"
-                            onClick={() => setRoleMenuOpen(false)}
-                            className="block px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
-                          >
-                            Bảng điều khiển Phụ huynh
-                          </Link>
-                        )}
-
-                        {/* ✅ LUỒNG 1+2: Link gia sư */}
-                        {hasRole('TUTOR') && (
-                          <Link
-                            to="/tutor/dashboard"
-                            onClick={() => setRoleMenuOpen(false)}
-                            className="block px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
-                          >
-                            Bàn làm việc Gia sư
-                          </Link>
-                        )}
-
-                        {/* ✅ LUỒNG 3: Link admin */}
-                        {hasRole('ADMIN') && (
-                          <Link
-                            to="/admin"
-                            onClick={() => setRoleMenuOpen(false)}
-                            className="block px-4 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-900"
-                          >
-                            Quản trị viên
-                          </Link>
-                        )}
-
-                        {/* 🚧 TẠM ẨN: Link Kids Mode */}
-                        {/* {hasRole('STUDENT') && (
-                          <Link to="/kids" ...>Góc Học Của Bé</Link>
-                        )} */}
-
-                        {/* 🚧 TẠM ẨN: Link Forum */}
-                        {/* <Link to="/forum" ...>Diễn Đàn Cộng Đồng</Link> */}
-                      </div>
-
-                      <div className="border-t border-slate-100 pt-1">
-                        <button
-                          onClick={() => {
-                            setRoleMenuOpen(false);
-                            logout();
-                            navigate('/');
-                          }}
-                          className="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          <span>Đăng xuất</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="px-3 py-1.5 text-xs font-semibold text-slate-700 hover:text-emerald-900 transition"
-                >
-                  Đăng nhập
+                  Tìm Gia Sư
                 </Link>
                 <Link
                   to="/apply"
-                  className="px-3.5 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition flex items-center gap-1.5 shadow-xs"
+                  className={`transition-colors py-1 ${
+                    location.pathname === '/apply'
+                      ? 'text-ink-900 font-semibold'
+                      : 'hover:text-ink-900'
+                  }`}
                 >
-                  <GraduationCap className="w-3.5 h-3.5 text-emerald-700" />
-                  <span>Đăng ký làm Gia sư</span>
+                  Đăng Ký Làm Gia Sư
                 </Link>
-                <Link
-                  to="/register/parent"
-                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 rounded-xl shadow-xs transition"
-                >
-                  Phụ huynh Đăng ký
-                </Link>
-              </div>
+              </>
             )}
-          </div>
+          </nav>
         </div>
-      </header>
-    </>
+
+        <div className="flex items-center gap-3">
+          {currentUser ? (
+            <div className="relative">
+              <button
+                onClick={() => setRoleMenuOpen(!roleMenuOpen)}
+                className="flex items-center gap-2 p-1 pl-2 pr-3 rounded-full border border-ink-200 hover:border-ink-300 transition bg-white cursor-pointer"
+              >
+                <img
+                  src={
+                    currentUser.avatar ||
+                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80'
+                  }
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-full object-cover border border-ink-200"
+                />
+                <div className="text-left hidden sm:block">
+                  <div className="text-xs font-semibold text-ink-900 leading-none">
+                    {currentUser.name}
+                  </div>
+                  <div className="text-[10px] text-ink-500 font-medium mt-0.5">
+                    {getRoleName(currentUser.roles?.[0])}
+                  </div>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-ink-400" />
+              </button>
+
+              {roleMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-ink-200 rounded-2xl shadow-xl shadow-ink-200/50 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-4 py-2 border-b border-ink-100 text-xs">
+                    <div className="font-semibold text-ink-900">{currentUser.name}</div>
+                    <div className="text-ink-500 truncate">{currentUser.email}</div>
+                  </div>
+
+                  <div className="py-1 text-xs">
+                    {/* Bàn làm việc theo vai trò */}
+                    {hasRole('PARENT') && (
+                      <Link
+                        to="/parent/dashboard"
+                        onClick={() => setRoleMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:bg-ink-50 hover:text-ink-900 font-medium"
+                      >
+                        <Users className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Bàn làm việc Phụ huynh</span>
+                      </Link>
+                    )}
+
+                    {hasRole('TUTOR') && (
+                      <Link
+                        to="/tutor/dashboard"
+                        onClick={() => setRoleMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:bg-ink-50 hover:text-ink-900 font-medium"
+                      >
+                        <GraduationCap className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Bàn làm việc Gia sư</span>
+                      </Link>
+                    )}
+
+                    {hasRole('ADMIN') && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setRoleMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:bg-ink-50 hover:text-ink-900 font-medium"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
+                        <span>Bàn làm việc Quản trị viên</span>
+                      </Link>
+                    )}
+
+                    {/* Trang thông tin cá nhân & đổi mật khẩu cho tất cả người dùng */}
+                    <Link
+                      to="/profile"
+                      onClick={() => setRoleMenuOpen(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-ink-700 hover:bg-brand-50 hover:text-brand-900 font-medium border-t border-ink-100/70 mt-1 pt-2"
+                    >
+                      <User className="w-3.5 h-3.5 text-ink-500" />
+                      <span>Thông tin cá nhân & Đổi MK</span>
+                    </Link>
+                  </div>
+
+                  <div className="border-t border-ink-100 pt-1">
+                    <button
+                      onClick={() => {
+                        setRoleMenuOpen(false);
+                        logout();
+                        navigate('/');
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-danger-500 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-medium"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/login"
+                className="text-xs sm:text-sm font-medium text-ink-600 hover:text-ink-900 px-3 py-2 transition"
+              >
+                Đăng nhập
+              </Link>
+              <Link to="/register/parent">
+                <Button variant="primary" size="sm">
+                  Đăng ký ngay
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
   );
 };

@@ -97,6 +97,39 @@ export async function authenticate(req, res, next) {
       });
     }
 
+    let roles = user.userRoles.map(ur => ur.role.code);
+    if (roles.length === 0 && user.userType) {
+      roles = [user.userType];
+    }
+
+    const permsSet = new Set(
+      user.userRoles.flatMap(ur =>
+        ur.role.rolePermissions.map(rp => rp.permission.code)
+      )
+    );
+
+    // Fallback default permissions theo userType nếu chưa được cấu hình RolePermission trong DB
+    if (roles.includes('PARENT') || user.userType === 'PARENT') {
+      [
+        'student:manage:own',
+        'student:view:all',
+        'class_request:create',
+        'class_request:view:own',
+        'lesson_report:view:own',
+        'lesson_report:confirm',
+      ].forEach(p => permsSet.add(p));
+    }
+
+    if (roles.includes('TUTOR') || user.userType === 'TUTOR') {
+      [
+        'tutor:profile:manage',
+        'class:view:own',
+        'lesson:report:submit',
+        'task:create',
+        'task:review',
+      ].forEach(p => permsSet.add(p));
+    }
+
     req.user = {
       id: user.id,
       username: user.username,
@@ -104,15 +137,9 @@ export async function authenticate(req, res, next) {
       userType: user.userType,
       departmentId: user.departmentId,
       actorType: user.userType,
-      roles: user.userRoles.map(ur => ur.role.code),
-      role: user.userRoles[0]?.role.code,
-      permissions: Array.from(
-        new Set(
-          user.userRoles.flatMap(ur =>
-            ur.role.rolePermissions.map(rp => rp.permission.code)
-          )
-        )
-      ),
+      roles,
+      role: roles[0],
+      permissions: Array.from(permsSet),
     };
 
     next();

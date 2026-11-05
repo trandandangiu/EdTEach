@@ -55,7 +55,10 @@ export const authService = {
       throw { status: 401, message: 'Tên đăng nhập hoặc mật khẩu không chính xác' };
     }
 
-    const roles = user.userRoles.map(ur => ur.role.code);
+    let roles = user.userRoles.map(ur => ur.role.code);
+    if (roles.length === 0 && user.userType) {
+      roles = [user.userType];
+    }
     const permissions = new Set();
     user.userRoles.forEach(ur => {
       ur.role.rolePermissions.forEach(rp => {
@@ -96,22 +99,95 @@ export const authService = {
   },
 
   // ============================================
-  // ĐĂNG KÝ PHỤ HUYNH
+  // CHECK KHẢ DỤNG USERNAME / EMAIL / PHONE (TRÁNH TRÙNG DB)
   // ============================================
-  async registerParent({ username, password, fullName, phone, email, address, province, district, parentPin }) {
-    if (!username || !password || !fullName || !phone) {
-      throw { status: 400, message: 'Vui lòng điền đầy đủ các thông tin bắt buộc' };
+  async checkAvailability({ username, email, phone }) {
+    const checks = { username: true, email: true, phone: true };
+
+    if (username && username.trim()) {
+      const userWithUsername = await prisma.user.findFirst({
+        where: {
+          username: { equals: username.trim(), mode: 'insensitive' },
+          deletedAt: null,
+        },
+      });
+      checks.username = !userWithUsername;
     }
 
+    if (email && email.trim()) {
+      const userWithEmail = await prisma.user.findFirst({
+        where: {
+          email: { equals: email.trim(), mode: 'insensitive' },
+          deletedAt: null,
+        },
+      });
+      checks.email = !userWithEmail;
+    }
+
+    if (phone && phone.trim()) {
+      const userWithPhone = await prisma.user.findFirst({
+        where: {
+          phone: phone.trim(),
+          deletedAt: null,
+        },
+      });
+      checks.phone = !userWithPhone;
+    }
+
+    const available = checks.username && checks.email && checks.phone;
+    return {
+      success: true,
+      available,
+      checks,
+    };
+  },
+
+  // ============================================
+  // ĐĂNG KÝ PHỤ HUYNH
+  // ============================================
+  async registerParent({
+    username,
+    password,
+    fullName,
+    phone,
+    email,
+    address,
+    province,
+    district,
+    parentPin,
+    children = [],
+    childName,
+    childGrade,
+  }) {
+    if (!username || !fullName || !phone) {
+      throw { status: 400, message: 'Vui lòng điền đầy đủ các thông tin bắt buộc (họ tên, SĐT, tên đăng nhập)' };
+    }
+
+    const trimmedUsername = username.trim().toLowerCase();
+    const trimmedPhone = phone.trim();
+    const trimmedEmail = email ? email.trim().toLowerCase() : null;
+
     const existing = await prisma.user.findFirst({
-      where: { OR: [{ username }, { phone }, ...(email ? [{ email }] : [])] },
+      where: {
+        OR: [
+          { username: trimmedUsername },
+          { phone: trimmedPhone },
+          ...(trimmedEmail ? [{ email: trimmedEmail }] : []),
+        ],
+        deletedAt: null,
+      },
     });
 
     if (existing) {
-      throw { status: 400, message: 'Tên đăng nhập, số điện thoại hoặc email đã được sử dụng' };
+      let conflictField = 'Tên đăng nhập, số điện thoại hoặc email';
+      if (existing.username.toLowerCase() === trimmedUsername) conflictField = 'Tên đăng nhập';
+      else if (existing.phone === trimmedPhone) conflictField = 'Số điện thoại';
+      else if (trimmedEmail && existing.email?.toLowerCase() === trimmedEmail) conflictField = 'Email';
+      throw { status: 400, message: `${conflictField} đã tồn tại trong hệ thống. Vui lòng chọn giá trị khác.` };
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const finalPassword = password && password.trim().length >= 6 ? password.trim() : 'password123';
+    const passwordHash = await bcrypt.hash(finalPassword, 10);
     const parentPinHash = parentPin ? await bcrypt.hash(String(parentPin), 10) : null;
 
     const parentRole = await prisma.role.findUnique({ where: { code: 'PARENT' } });
@@ -119,12 +195,12 @@ export const authService = {
     const newUser = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          username,
+          username: trimmedUsername,
           passwordHash,
           parentPinHash,
-          fullName,
-          phone,
-          email,
+          fullName: fullName.trim(),
+          phone: trimmedPhone,
+          email: trimmedEmail,
           userType: 'PARENT',
           active: true,
         },
@@ -136,7 +212,7 @@ export const authService = {
         });
       }
 
-      await tx.parentProfile.create({
+      const parentProfile = await tx.parentProfile.create({
         data: {
           userId: user.id,
           address,
@@ -144,6 +220,35 @@ export const authService = {
           district,
         },
       });
+
+      // Tạo các hồ sơ học sinh (con yêu) nếu có
+      const childList = Array.isArray(children) && children.length > 0
+        ? children
+        : (childName && childName.trim() ? [{ fullName: childName.trim(), grade: childGrade }] : []);
+
+      for (const child of childList) {
+        if (child.fullName && child.fullName.trim()) {
+          let gradeLevelId = 1;
+          if (child.gradeLevelId) {
+            gradeLevelId = Number(child.gradeLevelId);
+          } else if (child.grade) {
+            const num = parseInt(String(child.grade).replace(/\D/g, '')) || 1;
+            const matchedGrade = await tx.gradeLevel.findFirst({
+              where: { name: { contains: `${num}` } },
+            });
+            if (matchedGrade) gradeLevelId = matchedGrade.id;
+          }
+
+          await tx.studentProfile.create({
+            data: {
+              parentId: parentProfile.id,
+              fullName: child.fullName.trim(),
+              gradeLevelId,
+              nickname: child.nickname || undefined,
+            },
+          });
+        }
+      }
 
       return user;
     });
@@ -161,7 +266,7 @@ export const authService = {
 
     return {
       success: true,
-      message: 'Đăng ký tài khoản phụ huynh thành công',
+      message: 'Đăng ký tài khoản phụ huynh thành công. Người quản trị sẽ liên lạc để xác thực và hỗ trợ.',
       token,
       user: {
         id: newUser.id,
@@ -457,7 +562,10 @@ export const authService = {
       throw { status: 403, message: 'Tài khoản đã bị khóa' };
     }
 
-    const roleCodes = user.userRoles.map(ur => ur.role.code);
+    let roleCodes = user.userRoles.map(ur => ur.role.code);
+    if (roleCodes.length === 0 && user.userType) {
+      roleCodes = [user.userType];
+    }
     const roleDetails = user.userRoles.map(ur => ({
       id: ur.role.id,
       code: ur.role.code,
@@ -511,4 +619,71 @@ export const authService = {
 
     return { success: true, message: 'Đổi mật khẩu thành công' };
   },
+
+  // ============================================
+  // UPDATE PROFILE (Current User)
+  // ============================================
+  async updateProfile(userId, data) {
+    const { fullName, email, phone, avatarUrl, location, address, bio } = data;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { parentProfile: true, tutorProfile: true },
+    });
+    if (!user || user.deletedAt) {
+      throw { status: 404, message: 'Không tìm thấy người dùng' };
+    }
+
+    if (email && email.toLowerCase() !== user.email?.toLowerCase()) {
+      const emailExists = await prisma.user.findFirst({
+        where: { email: email.toLowerCase(), id: { not: userId }, deletedAt: null },
+      });
+      if (emailExists) {
+        throw { status: 400, message: 'Email này đã được sử dụng bởi tài khoản khác' };
+      }
+    }
+    if (phone && phone !== user.phone) {
+      const phoneExists = await prisma.user.findFirst({
+        where: { phone, id: { not: userId }, deletedAt: null },
+      });
+      if (phoneExists) {
+        throw { status: 400, message: 'Số điện thoại này đã được sử dụng bởi tài khoản khác' };
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(fullName !== undefined && { fullName: fullName.trim() }),
+          ...(email !== undefined && { email: email.trim().toLowerCase() }),
+          ...(phone !== undefined && { phone: phone.trim() }),
+          ...(avatarUrl !== undefined && { avatarUrl }),
+        },
+      });
+
+      if (user.parentProfile) {
+        await tx.parentProfile.update({
+          where: { id: user.parentProfile.id },
+          data: {
+            ...(location !== undefined && { province: location }),
+            ...(address !== undefined && { address }),
+          },
+        });
+      }
+
+      if (user.tutorProfile) {
+        await tx.tutorProfile.update({
+          where: { id: user.tutorProfile.id },
+          data: {
+            ...(location !== undefined && { province: location }),
+            ...(bio !== undefined && { bio }),
+          },
+        });
+      }
+    });
+
+    const fullUser = await this.getCurrentUser(userId);
+    return { success: true, message: 'Cập nhật thông tin cá nhân thành công', user: fullUser };
+  },
 };
+

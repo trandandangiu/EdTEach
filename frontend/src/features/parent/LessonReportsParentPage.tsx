@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import { LessonReport } from '../../types/edtech';
-import { FileText, Star, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { FileText, Star, ArrowRight, CheckCircle2, Loader2, Plus, Calendar } from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { PageHeader } from '../../components/ui/PageHeader';
 
 export default function LessonReportsParentPage() {
   const navigate = useNavigate();
@@ -14,7 +18,7 @@ export default function LessonReportsParentPage() {
       try {
         setLoading(true);
         const res = await api.reports.getLessonReports();
-        if (res.data) setReports(res.data);
+        if (res?.data) setReports(res.data);
       } catch (err) {
         console.error('Lỗi tải báo cáo buổi học:', err);
       } finally {
@@ -25,73 +29,85 @@ export default function LessonReportsParentPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-        <span className="text-xs font-semibold text-emerald-700">VietTutor · Phụ Huynh Quản Lý</span>
-        <h1 className="text-2xl font-black text-slate-900 mt-1">
-          Sổ Theo Dõi Báo Cáo Buổi Học ({reports.length} buổi)
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Gia sư cập nhật nhận xét, điểm tiếp thu kiến thức và bài tập về nhà sau mỗi buổi dạy.
-        </p>
-      </div>
+    <div className="space-y-8">
+      {/* Page Header */}
+      <PageHeader
+        eyebrow="VietTutor · Cổng Phụ Huynh"
+        title={`Sổ Theo Dõi Báo Cáo Buổi Học (${reports.length} buổi)`}
+        description="Gia sư cập nhật nội dung bài học, nhận xét tiếp thu và bài tập về nhà sau từng buổi dạy để phụ huynh xác nhận."
+      />
 
-      <div className="space-y-4">
+      {loading ? (
+        <Card variant="static" padding="lg" className="py-20 text-center flex flex-col items-center justify-center text-ink-400 gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+          <p className="text-sm font-medium">Đang tải danh sách báo cáo buổi học...</p>
+        </Card>
+      ) : reports.length === 0 ? (
+        <Card variant="static" padding="lg" className="py-16 text-center space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-brand-50 text-brand-700 border border-brand-100 flex items-center justify-center mx-auto text-3xl">
+            📖
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-semibold text-ink-900">Chưa có báo cáo buổi học nào</h3>
+            <p className="text-xs text-ink-500 max-w-sm mx-auto">
+              Sau khi gia sư hoàn thành buổi học và gửi sổ liên lạc, báo cáo sẽ tự động hiển thị tại đây để bạn xem nhận xét và đánh giá.
+            </p>
+          </div>
+          <Link to="/parent/dashboard">
+            <Button variant="outline" size="sm">
+              <span>Về bảng điều khiển</span>
+            </Button>
+          </Link>
+        </Card>
+      ) : (
+        <div className="space-y-4">
           {reports.map((report) => (
-            <div
+            <Card
               key={report.id}
+              variant="interactive"
+              padding="md"
               onClick={() => navigate(`/parent/reports/${report.id}`)}
-              className="bg-white p-6 rounded-3xl border border-slate-200 hover:border-emerald-600 transition shadow-xs cursor-pointer space-y-4 group"
+              className="space-y-4 cursor-pointer group"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3 text-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-ink-100 pb-3 text-xs">
                 <div>
-                  <span className="font-extrabold text-emerald-800">Buổi số {report.lessonNumber}</span>
-                  <span className="text-slate-400 mx-2">·</span>
-                  <span className="text-slate-600 font-semibold">Ngày {report.date}</span>
-                  <span className="text-slate-400 mx-2">·</span>
+                  <span className="font-semibold text-brand-700">
+                    Buổi số {report.lessonNumber || 1}
+                  </span>
+                  <span className="text-ink-300 mx-2">·</span>
+                  <span className="text-ink-600 font-medium">Ngày {report.date}</span>
+                  <span className="text-ink-300 mx-2">·</span>
                   <span>Gia sư: <strong>{report.tutorName}</strong></span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-md flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>+{report.starsAwarded} Sao</span>
-                  </span>
+                <div>
+                  <Badge variant={report.status === 'CONFIRMED' ? 'brand' : 'gold'}>
+                    {report.status === 'CONFIRMED' ? '✓ Đã xác nhận' : '⏳ Chờ phụ huynh xác nhận'}
+                  </Badge>
                 </div>
               </div>
 
-              {/* 3 Metric Scores */}
-              <div className="grid grid-cols-3 gap-3 max-w-md">
-                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block">TIẾP THU</span>
-                  <span className="text-base font-black text-emerald-800">{report.comprehensionScore}/10</span>
+              <div className="text-xs text-ink-700 space-y-1.5">
+                <div>
+                  <strong className="text-ink-900">Nội dung bài học:</strong> {report.topic || 'Ôn tập kiến thức'}
                 </div>
-                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block">TẬP TRUNG</span>
-                  <span className="text-base font-black text-emerald-800">{report.focusScore}/10</span>
-                </div>
-                <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
-                  <span className="text-[10px] text-slate-400 font-bold block">BÀI VỀ NHÀ</span>
-                  <span className="text-base font-black text-emerald-800">{report.homeworkScore}/10</span>
-                </div>
-              </div>
-
-              <div className="text-xs text-slate-700 space-y-1">
-                <div><strong>Nội dung bài học:</strong> {report.topic}</div>
-                <div className="text-slate-500 italic line-clamp-1">
-                  &quot;{report.teacherFeedback}&quot;
-                </div>
+                {report.teacherFeedback && (
+                  <div className="text-ink-500 italic line-clamp-2 bg-ink-50 p-3 rounded-xl border border-ink-200/80">
+                    "{report.teacherFeedback}"
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex justify-end">
-                <span className="text-xs font-bold text-emerald-800 group-hover:translate-x-1 transition flex items-center gap-1">
-                  <span>Xem chi tiết phiếu báo cáo</span>
+                <span className="text-xs font-semibold text-brand-700 group-hover:translate-x-1 transition flex items-center gap-1">
+                  <span>Xem chi tiết sổ liên lạc</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
+      )}
     </div>
   );
 }
